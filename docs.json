@@ -3,9 +3,9 @@
   "theme": "maple",
   "name": "NeoSpeech API",
   "colors": {
-    "primary": "#65a30d",
+    "primary": "#000",
     "light": "#3B3B3B",
-    "dark": "#1c1917"
+    "dark": "#171717"
   },
   "favicon": "/favicon.ico",
   "navigation": {
