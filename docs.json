@@ -1,125 +1,61 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "theme": "quill",
+  "$schema": "https://docs.neospeech.io/docs.json",
+  "theme": "maple",
   "name": "NeoSpeech API",
   "colors": {
-    "primary": "#000000",
+    "primary": "#65a30d",
     "light": "#3B3B3B",
-    "dark": "#000000",
-    "background": {
-      "light": "#FFFFFF",
-      "dark": "#0A0A0A"
-    }
+    "dark": "#1c1917"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.ico",
   "navigation": {
-    "tabs": [
+    "groups": [
       {
-        "tab": "Documentation",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "authentication"
-            ]
-          },
-          {
-            "group": "Core Concepts",
-            "pages": [
-              "concepts/voices",
-              "concepts/models",
-              "concepts/rate-limits"
-            ]
-          }
+        "group": "Getting Started",
+        "pages": ["introduction", "quickstart"]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/authentication",
+          "concepts/voices",
+          "concepts/models"
         ]
       },
       {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "Endpoints",
-            "pages": [
-              "api-reference/speech",
-              "api-reference/stream",
-              "api-reference/balance",
-              "api-reference/voices",
-              "api-reference/models"
-            ]
-          },
-          {
-            "group": "Resources",
-            "pages": [
-              "api-reference/errors",
-              "api-reference/response-codes"
-            ]
-          }
+        "group": "API Reference",
+        "pages": [
+          "api/text-to-speech",
+          "api/streaming",
+          "api/voices",
+          "api/models",
+          "api/balance"
         ]
       },
       {
-        "tab": "SDK & Examples",
-        "groups": [
-          {
-            "group": "Code Examples",
-            "pages": [
-              "examples/javascript",
-              "examples/python",
-              "examples/curl"
-            ]
-          },
-          {
-            "group": "Integration Guides",
-            "pages": [
-              "guides/streaming",
-              "guides/error-handling",
-              "guides/best-practices"
-            ]
-          }
+        "group": "Guides",
+        "pages": [
+          "guides/errors",
+          "guides/rate-limits",
+          "guides/best-practices"
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Dashboard",
-          "href": "https://neospeech.io",
-          "icon": "square-terminal"
-        },
-        {
-          "anchor": "Support",
-          "href": "https://neospeech.io/support",
-          "icon": "life-ring"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/logo/dark.png",
+    "dark": "/logo/light.png"
   },
-  "navbar": {
-    "links": [
-      {
-        "label": "API Status",
-        "href": "https://status.neospeech.io"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Get API Key",
-      "href": "https://neospeech.io"
+  "seo": {
+    "indexing": "all",
+    "metatags": {
+      "og:type": "website",
+      "og:site_name": "NeoSpeech API Docs"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/neospeech",
+      "x": "https://x.com/neospeechio",
       "github": "https://github.com/neospeech"
     }
   }

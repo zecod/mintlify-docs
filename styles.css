@@ -1,0 +1,14 @@
+/* Hide default Mintlify branding in the footer */
+footer a[href="https://mintlify.com"] {
+  display: none !important;
+}
+
+/* Enlarge navbar logo */
+header a[href="/"] img,
+header a[href="/"] svg,
+header .logo img,
+header .logo svg {
+  height: 40px !important;
+  max-height: 40px !important;
+  width: auto !important;
+}

@@ -1,0 +1,117 @@
+---
+title: Rate Limits
+description: Understand API rate limits and concurrency
+---
+
+Rate limits prevent abuse and ensure fair usage for all users.
+
+## Concurrency limits
+
+Maximum concurrent requests per plan:
+
+| Plan | Regular TTS | Streaming TTS |
+|------|-------------|---------------|
+| Pro | 18 | 10 |
+| Business | 25 | 15 |
+
+Requests beyond these limits will queue or be rejected.
+
+## Request limits
+
+- **Max text length:** 5,000 characters per request
+- **Timeout:** 120 seconds (regular), 180 seconds (streaming)
+
+## How it works
+
+When you hit the concurrency limit:
+
+1. New requests queue automatically
+2. Requests process as slots become available
+3. Queued requests timeout after 30 seconds
+
+## Handling rate limits
+
+### Check your concurrent requests
+
+Track active requests in your application:
+
+```javascript
+let activeRequests = 0;
+const MAX_CONCURRENT = 18; // Pro plan
+
+async function throttledRequest(text, voice, model) {
+  while (activeRequests >= MAX_CONCURRENT) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  activeRequests++;
+  try {
+    return await makeRequest(text, voice, model);
+  } finally {
+    activeRequests--;
+  }
+}
+```
+
+### Use a queue
+
+For many requests, use a proper queue:
+
+```javascript
+import PQueue from 'p-queue';
+
+const queue = new PQueue({ concurrency: 18 });
+
+// Add requests to queue
+const results = await Promise.all([
+  queue.add(() => makeRequest(text1, voice, model)),
+  queue.add(() => makeRequest(text2, voice, model)),
+  queue.add(() => makeRequest(text3, voice, model))
+]);
+```
+
+### Split large texts
+
+Keep requests under 5,000 characters:
+
+```javascript
+function splitText(text, maxLength = 5000) {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chunks = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    if ((current + sentence).length > maxLength) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current += sentence;
+    }
+  }
+
+  if (current) chunks.push(current.trim());
+  return chunks;
+}
+```
+
+## Monitor usage
+
+Check your balance regularly:
+
+```bash
+curl https://api.neospeech.io/v1/balance \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+Response shows:
+- Total credits
+- Used credits
+- Remaining credits
+- Overage (if any)
+
+## Upgrade limits
+
+Need higher limits? Contact support for enterprise plans with:
+- Higher concurrency
+- Custom rate limits
+- Dedicated infrastructure

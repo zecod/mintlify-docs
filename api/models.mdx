@@ -1,0 +1,147 @@
+---
+title: List Models
+description: Get available audio models and their specs
+api: "GET https://api.neospeech.io/v1/models/list"
+---
+
+Choose the right model based on quality needs and speed requirements. Each model balances audio fidelity against processing time.
+
+## Request
+
+```bash
+curl "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer sk-your-api-key"
+```
+
+## Parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token: `Bearer sk-your-api-key`
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "models": [
+      {
+        "id": "aurora-4",
+        "name": "Aurora 4",
+        "description": "Premium quality model",
+        "sample_rate": "48kHz",
+        "bitrate": "192kbps",
+        "quality": "premium"
+      }
+    ],
+    "total": 5
+  }
+}
+```
+
+## Available models
+
+| Model | Quality | Sample Rate | Best For |
+|-------|---------|-------------|----------|
+| **aurora-4** | Premium | 48kHz, 192kbps | Broadcasting, professional media |
+| **aurora-3.5** | High | 48kHz, 96kbps | Podcasts, audiobooks, e-learning |
+| **aurora-3** | Standard | 24kHz, 160kbps | General content creation |
+| **turbo-3** | Good | 16kHz, 64kbps | Chatbots, real-time apps |
+| **mini-2** | Basic | 24kHz, 48kbps | IoT devices, mobile apps |
+
+## When to use each
+
+### Aurora 4
+
+Use for content where quality matters most:
+- Professional video production
+- Radio and TV broadcasting
+- High-end marketing content
+- Premium entertainment
+
+Higher file sizes and longer processing time are worth it when audio quality is critical.
+
+### Aurora 3.5
+
+The sweet spot for most applications:
+- Podcasts and audiobooks
+- Online courses and training
+- Business presentations
+- Professional voiceovers
+
+Excellent quality with reasonable file sizes and processing time. Start here unless you have specific needs.
+
+### Turbo 3
+
+When speed matters more than quality:
+- Conversational AI and chatbots
+- Voice assistants
+- Interactive voice response (IVR)
+- Real-time gaming
+
+Lower audio quality is acceptable when users need immediate responses.
+
+### Mini 2
+
+For resource-constrained environments:
+- IoT and embedded devices
+- Mobile apps with limited bandwidth
+- Development and prototyping
+- High-volume batch processing
+
+Smallest files and lowest resource usage, but noticeably lower quality.
+
+## Common patterns
+
+### Get all models
+
+```javascript
+const response = await fetch('https://api.neospeech.io/v1/models/list', {
+  headers: { 'Authorization': `Bearer ${apiKey}` }
+});
+
+const { data } = await response.json();
+console.log(`${data.total} models available`);
+```
+
+### Choose by use case
+
+```javascript
+function selectModel(useCase) {
+  const modelMap = {
+    'broadcasting': 'aurora-4',
+    'podcast': 'aurora-3.5',
+    'audiobook': 'aurora-3.5',
+    'chatbot': 'turbo-3',
+    'mobile': 'mini-2'
+  };
+
+  return modelMap[useCase] || 'aurora-3.5';
+}
+
+const model = selectModel('podcast');
+```
+
+### Pick by quality priority
+
+```javascript
+function selectByPriority(priority) {
+  if (priority === 'quality') return 'aurora-4';
+  if (priority === 'speed') return 'turbo-3';
+  if (priority === 'size') return 'mini-2';
+  return 'aurora-3.5'; // balanced
+}
+```
+
+## Making the choice
+
+Start with **aurora-3.5** for most projects. It offers excellent quality at reasonable speed.
+
+Upgrade to **aurora-4** only if you're producing professional media where audio fidelity is critical. The quality difference is subtle but matters for high-end applications.
+
+Switch to **turbo-3** for conversational experiences where users expect instant responses.
+
+Use **mini-2** only when bandwidth or storage is severely limited. The quality drop is significant compared to other models.
+
+Test your actual content with different models. What sounds good in demos might not work for your specific use case.

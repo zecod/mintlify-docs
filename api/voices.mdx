@@ -1,0 +1,149 @@
+---
+title: List Voices
+description: Get available voices with their characteristics
+api: "GET https://api.neospeech.io/v1/voices/list"
+---
+
+Browse 45+ voices across multiple languages and accents. Each voice has a unique personality and tone.
+
+## Request
+
+```bash
+curl "https://api.neospeech.io/v1/voices/list" \
+  -H "Authorization: Bearer sk-your-api-key"
+```
+
+## Parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token: `Bearer sk-your-api-key`
+</ParamField>
+
+<ParamField query="gender" type="string">
+  Filter by `male`, `female`, or `neutral`
+</ParamField>
+
+<ParamField query="locale" type="string">
+  Filter by language like `en-US`, `en-GB`, `fr-FR`, `de-DE`
+</ParamField>
+
+<ParamField query="search" type="string">
+  Search by name or description
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Results per page (1-100). Default: 20
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Skip results for pagination. Default: 0
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "voices": [
+      {
+        "id": "lyra",
+        "name": "Lyra",
+        "gender": "female",
+        "locale": "en-US",
+        "description": "Warm, professional American female voice",
+        "tags": ["professional", "friendly", "clear"],
+        "sample_url": "https://cdn.neospeech.io/samples/lyra.mp3"
+      }
+    ],
+    "pagination": {
+      "total": 47,
+      "limit": 20,
+      "offset": 0,
+      "returned": 20
+    }
+  }
+}
+```
+
+## Common patterns
+
+### Get all voices
+
+```javascript
+const response = await fetch('https://api.neospeech.io/v1/voices/list', {
+  headers: { 'Authorization': `Bearer ${apiKey}` }
+});
+
+const { data } = await response.json();
+console.log(`Found ${data.pagination.total} voices`);
+```
+
+### Filter by gender and locale
+
+```javascript
+const params = new URLSearchParams({
+  gender: 'female',
+  locale: 'en-US'
+});
+
+const response = await fetch(
+  `https://api.neospeech.io/v1/voices/list?${params}`,
+  { headers: { 'Authorization': `Bearer ${apiKey}` } }
+);
+
+const { data } = await response.json();
+const voices = data.voices;
+```
+
+### Search voices
+
+```python
+params = {'search': 'professional'}
+response = requests.get(
+    'https://api.neospeech.io/v1/voices/list',
+    headers={'Authorization': f'Bearer {apiKey}'},
+    params=params
+)
+
+voices = response.json()['data']['voices']
+```
+
+## Popular voices
+
+### Professional
+
+Best for business content, presentations, and training:
+
+- **Lyra** (female, en-US) - Warm and professional
+- **Marcus** (male, en-US) - Authoritative and clear
+- **Victoria** (female, en-GB) - Sophisticated British
+
+### Conversational
+
+Great for chatbots and casual content:
+
+- **Kai** (male, en-US) - Energetic and friendly
+- **Zara** (female, en-US) - Approachable and warm
+- **Oliver** (male, en-GB) - Casual British
+
+### Multilingual
+
+For international audiences:
+
+- **Amélie** (female, fr-FR) - French
+- **Hans** (male, de-DE) - German
+- **Yuki** (female, ja-JP) - Japanese
+- **Sofia** (female, es-ES) - Spanish
+
+## Choosing a voice
+
+Listen to sample audio before deciding. The right voice depends on your use case:
+
+- Match voice locale to content language for better pronunciation
+- Consider your audience and brand tone
+- Test multiple voices with your actual content
+- Professional contexts usually need neutral, clear voices
+- Entertainment can use more expressive styles
+
+Voice selection significantly impacts how users perceive your content. Take time to test a few options.

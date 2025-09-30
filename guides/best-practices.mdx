@@ -1,7 +1,6 @@
 ---
 title: "API Best Practices"
 description: Best practices for building reliable, efficient applications
-icon: "lightbulb"
 ---
 
 ## Overview
@@ -39,10 +38,11 @@ api_key = 'sk-abc123xyz789'
 
 For client-side applications, proxy requests through your backend:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 // Client-side code
 async function generateSpeech(text, voice, model) {
-  // Request goes to your backend, not directly to API
   const response = await fetch('/api/generate-speech', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -56,16 +56,14 @@ async function generateSpeech(text, voice, model) {
 app.post('/api/generate-speech', async (req, res) => {
   const { text, voice, model } = req.body;
 
-  // Validate request
   if (!text || text.length > 5000) {
     return res.status(400).json({ error: 'Invalid input' });
   }
 
-  // Make request to NeoSpeech API with server-stored key
   const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.NEOSPEECH_API_KEY}`,
+      Authorization: `Bearer ${process.env.NEOSPEECH_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ input: text, voice, model })
@@ -77,17 +75,63 @@ app.post('/api/generate-speech', async (req, res) => {
 });
 ```
 
+```python Python
+# Client-side request (for example, using httpx in an async app)
+async def generate_speech(session, text, voice, model):
+    response = await session.post(
+        '/api/generate-speech',
+        json={"text": text, "voice": voice, "model": model},
+        headers={"Content-Type": "application/json"},
+    )
+    response.raise_for_status()
+    return response.content
+
+# Backend proxy (FastAPI example)
+from fastapi import FastAPI, HTTPException, Response
+import httpx
+import os
+
+app = FastAPI()
+
+@app.post('/api/generate-speech')
+async def generate_speech_proxy(payload: dict):
+    text = payload.get('text')
+    voice = payload.get('voice')
+    model = payload.get('model')
+
+    if not text or len(text) > 5000:
+        raise HTTPException(status_code=400, detail='Invalid input')
+
+    headers = {
+        'Authorization': f"Bearer {os.environ['NEOSPEECH_API_KEY']}",
+        'Content-Type': 'application/json',
+    }
+
+    async with httpx.AsyncClient() as client:
+        neo_response = await client.post(
+            'https://api.neospeech.io/v1/audio/speech',
+            headers=headers,
+            json={'input': text, 'voice': voice, 'model': model},
+        )
+
+    neo_response.raise_for_status()
+    return Response(content=neo_response.content, media_type='audio/mpeg')
+```
+
+</CodeGroup>
+
 ## Input Validation
 
 ### Client-Side Validation
 
 Validate inputs before making API requests:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 function validateSpeechRequest(text, voice, model) {
   const errors = [];
 
-  // Check text
   if (!text || typeof text !== 'string') {
     errors.push('Text must be a non-empty string');
   } else if (text.trim().length === 0) {
@@ -96,12 +140,10 @@ function validateSpeechRequest(text, voice, model) {
     errors.push('Text exceeds 5000 character limit');
   }
 
-  // Check voice
   if (!voice || typeof voice !== 'string') {
     errors.push('Voice must be specified');
   }
 
-  // Check model
   const validModels = ['aurora-4', 'aurora-3.5', 'aurora-3', 'turbo-3', 'mini-2'];
   if (!validModels.includes(model)) {
     errors.push(`Model must be one of: ${validModels.join(', ')}`);
@@ -114,7 +156,6 @@ function validateSpeechRequest(text, voice, model) {
   return true;
 }
 
-// Usage
 try {
   validateSpeechRequest(text, voice, model);
   const audio = await generateSpeech(text, voice, model);
@@ -123,19 +164,50 @@ try {
 }
 ```
 
+```python Python
+def validate_speech_request(text: str, voice: str, model: str) -> bool:
+    errors: list[str] = []
+
+    if not text or not isinstance(text, str):
+        errors.append('Text must be a non-empty string')
+    elif text.strip() == '':
+        errors.append('Text cannot be only whitespace')
+    elif len(text) > 5000:
+        errors.append('Text exceeds 5000 character limit')
+
+    if not voice or not isinstance(voice, str):
+        errors.append('Voice must be specified')
+
+    valid_models = {'aurora-4', 'aurora-3.5', 'aurora-3', 'turbo-3', 'mini-2'}
+    if model not in valid_models:
+        errors.append(f"Model must be one of: {', '.join(sorted(valid_models))}")
+
+    if errors:
+        raise ValueError('; '.join(errors))
+
+    return True
+
+
+try:
+    validate_speech_request(text, voice, model)
+    audio = generate_speech(text, voice, model)
+except ValueError as exc:
+    print(f'Validation failed: {exc}')
+```
+
+</CodeGroup>
+
 ### Sanitize Input
 
 Clean and sanitize text input:
 
-```javascript
-function sanitizeText(text) {
-  // Remove excessive whitespace
-  text = text.replace(/\s+/g, ' ').trim();
+<CodeGroup>
 
-  // Remove potentially problematic characters
+```javascript JavaScript
+function sanitizeText(text) {
+  text = text.replace(/\s+/g, ' ').trim();
   text = text.replace(/[\x00-\x1F\x7F]/g, '');
 
-  // Limit length
   if (text.length > 5000) {
     text = text.substring(0, 5000);
     console.warn('Text truncated to 5000 characters');
@@ -144,10 +216,30 @@ function sanitizeText(text) {
   return text;
 }
 
-// Usage
 const cleanText = sanitizeText(userInput);
 const audio = await generateSpeech(cleanText, 'lyra', 'aurora-3.5');
 ```
+
+```python Python
+import re
+
+
+def sanitize_text(text: str) -> str:
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'[\x00-\x1F\x7F]', '', text)
+
+    if len(text) > 5000:
+        text = text[:5000]
+        print('Text truncated to 5000 characters')
+
+    return text
+
+
+clean_text = sanitize_text(user_input)
+audio = generate_speech(clean_text, 'lyra', 'aurora-3.5')
+```
+
+</CodeGroup>
 
 ## Caching
 
@@ -155,7 +247,9 @@ const audio = await generateSpeech(cleanText, 'lyra', 'aurora-3.5');
 
 Cache frequently requested audio to reduce costs:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class AudioCache {
   constructor(maxSize = 100) {
     this.cache = new Map();
@@ -174,7 +268,6 @@ class AudioCache {
   set(text, voice, model, audio) {
     const key = this.generateKey(text, voice, model);
 
-    // Implement LRU eviction
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
@@ -187,37 +280,77 @@ class AudioCache {
     const key = this.generateKey(text, voice, model);
     return this.cache.has(key);
   }
-
-  clear() {
-    this.cache.clear();
-  }
 }
 
 const audioCache = new AudioCache(100);
 
 async function getCachedSpeech(text, voice, model) {
-  // Check cache first
   if (audioCache.has(text, voice, model)) {
     console.log('Cache hit');
     return audioCache.get(text, voice, model);
   }
 
-  // Generate and cache
   console.log('Cache miss, generating...');
   const audio = await generateSpeech(text, voice, model);
   audioCache.set(text, voice, model, audio);
-
   return audio;
 }
 ```
+
+```python Python
+from collections import OrderedDict
+
+
+class AudioCache:
+    def __init__(self, max_size: int = 100) -> None:
+        self.cache: OrderedDict[str, bytes] = OrderedDict()
+        self.max_size = max_size
+
+    def _key(self, text: str, voice: str, model: str) -> str:
+        return f"{voice}:{model}:{text}"
+
+    def get(self, text: str, voice: str, model: str) -> bytes | None:
+        key = self._key(text, voice, model)
+        if key not in self.cache:
+            return None
+        self.cache.move_to_end(key)
+        return self.cache[key]
+
+    def set(self, text: str, voice: str, model: str, audio: bytes) -> None:
+        key = self._key(text, voice, model)
+        if key in self.cache:
+            self.cache.move_to_end(key)
+        self.cache[key] = audio
+        if len(self.cache) > self.max_size:
+            self.cache.popitem(last=False)
+
+
+audio_cache = AudioCache(100)
+
+
+def get_cached_speech(text: str, voice: str, model: str) -> bytes:
+    cached = audio_cache.get(text, voice, model)
+    if cached is not None:
+        print('Cache hit')
+        return cached
+
+    print('Cache miss, generating...')
+    audio = generate_speech(text, voice, model)
+    audio_cache.set(text, voice, model, audio)
+    return audio
+```
+
+</CodeGroup>
 
 ### Cache Voice and Model Lists
 
 Cache static data to reduce API calls:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class APICache {
-  constructor(ttl = 3600000) { // 1 hour default
+  constructor(ttl = 3600000) {
     this.cache = new Map();
     this.ttl = ttl;
   }
@@ -231,7 +364,6 @@ class APICache {
 
   get(key) {
     const entry = this.cache.get(key);
-
     if (!entry) return null;
 
     if (Date.now() > entry.expires) {
@@ -251,7 +383,6 @@ async function getCachedVoices() {
 
   const voices = await listVoices();
   apiCache.set('voices', voices);
-
   return voices;
 }
 
@@ -261,10 +392,58 @@ async function getCachedModels() {
 
   const models = await listModels();
   apiCache.set('models', models);
-
   return models;
 }
 ```
+
+```python Python
+import time
+
+
+class APICache:
+    def __init__(self, ttl: float = 3600.0) -> None:
+        self.cache: dict[str, tuple[float, object]] = {}
+        self.ttl = ttl
+
+    def set(self, key: str, value: object) -> None:
+        self.cache[key] = (time.time() + self.ttl, value)
+
+    def get(self, key: str) -> object | None:
+        entry = self.cache.get(key)
+        if not entry:
+            return None
+
+        expires_at, value = entry
+        if time.time() > expires_at:
+            self.cache.pop(key, None)
+            return None
+        return value
+
+
+api_cache = APICache(3600.0)
+
+
+def get_cached_voices():
+    cached = api_cache.get('voices')
+    if cached:
+        return cached
+
+    voices = list_voices()
+    api_cache.set('voices', voices)
+    return voices
+
+
+def get_cached_models():
+    cached = api_cache.get('models')
+    if cached:
+        return cached
+
+    models = list_models()
+    api_cache.set('models', models)
+    return models
+```
+
+</CodeGroup>
 
 ## Rate Limiting
 
@@ -272,7 +451,9 @@ async function getCachedModels() {
 
 Queue requests to respect rate limits:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class RateLimitedQueue {
   constructor(requestsPerMinute = 60, concurrentRequests = 18) {
     this.requestsPerMinute = requestsPerMinute;
@@ -290,12 +471,10 @@ class RateLimitedQueue {
   }
 
   async processQueue() {
-    // Check concurrent limit
     if (this.active >= this.concurrentRequests) {
       return;
     }
 
-    // Check rate limit
     const now = Date.now();
     this.requestTimes = this.requestTimes.filter(t => now - t < 60000);
 
@@ -305,7 +484,6 @@ class RateLimitedQueue {
       return;
     }
 
-    // Get next request
     const item = this.queue.shift();
     if (!item) return;
 
@@ -324,7 +502,6 @@ class RateLimitedQueue {
   }
 }
 
-// Usage
 const queue = new RateLimitedQueue(60, 18);
 
 async function queuedGenerateSpeech(text, voice, model) {
@@ -332,11 +509,50 @@ async function queuedGenerateSpeech(text, voice, model) {
 }
 ```
 
+```python Python
+import asyncio
+import os
+import time
+
+
+class RateLimitedQueue:
+    def __init__(self, requests_per_minute: int = 60, concurrent_requests: int = 18) -> None:
+        self.requests_per_minute = requests_per_minute
+        self.semaphore = asyncio.Semaphore(concurrent_requests)
+        self.request_times: list[float] = []
+
+    async def add(self, coro):
+        async with self.semaphore:
+            await self._respect_rate_limit()
+            return await coro()
+
+    async def _respect_rate_limit(self) -> None:
+        now = time.monotonic()
+        window = now - 60
+        self.request_times = [t for t in self.request_times if t > window]
+
+        if len(self.request_times) >= self.requests_per_minute:
+            sleep_for = self.request_times[0] + 60 - now
+            await asyncio.sleep(sleep_for)
+        self.request_times.append(time.monotonic())
+
+
+queue = RateLimitedQueue(60, 18)
+
+
+async def queued_generate_speech(text: str, voice: str, model: str):
+    return await queue.add(lambda: generate_speech(text, voice, model))
+```
+
+</CodeGroup>
+
 ### Monitor Usage
 
 Track API usage to stay within limits:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class UsageMonitor {
   constructor() {
     this.reset();
@@ -395,9 +611,82 @@ async function monitoredGenerateSpeech(text, voice, model) {
   }
 }
 
-// Get usage report
 console.log(monitor.getReport());
 ```
+
+```python Python
+from dataclasses import dataclass, field
+
+
+@dataclass
+class UsageStats:
+    total_requests: int = 0
+    successful_requests: int = 0
+    failed_requests: int = 0
+    total_characters: int = 0
+    rate_limit_hits: int = 0
+    errors: dict[str, int] = field(default_factory=dict)
+
+
+class UsageMonitor:
+    def __init__(self) -> None:
+        self.stats = UsageStats()
+
+    def reset(self) -> None:
+        self.stats = UsageStats()
+
+    def record_request(self, success: bool, characters: int, error: Exception | None = None) -> None:
+        self.stats.total_requests += 1
+        if success:
+            self.stats.successful_requests += 1
+            self.stats.total_characters += characters
+            return
+
+        self.stats.failed_requests += 1
+        if error is not None:
+            code = getattr(error, 'code', 'UNKNOWN')
+            self.stats.errors[code] = self.stats.errors.get(code, 0) + 1
+            if getattr(error, 'status', None) == 429:
+                self.stats.rate_limit_hits += 1
+
+    def report(self) -> dict[str, object]:
+        success_rate = 0.0
+        if self.stats.total_requests:
+            success_rate = self.stats.successful_requests / self.stats.total_requests * 100
+
+        avg_characters = 0
+        if self.stats.successful_requests:
+            avg_characters = round(self.stats.total_characters / self.stats.successful_requests)
+
+        return {
+            'total_requests': self.stats.total_requests,
+            'successful_requests': self.stats.successful_requests,
+            'failed_requests': self.stats.failed_requests,
+            'total_characters': self.stats.total_characters,
+            'rate_limit_hits': self.stats.rate_limit_hits,
+            'errors': self.stats.errors,
+            'success_rate': f"{success_rate:.2f}%",
+            'avg_characters_per_request': avg_characters,
+        }
+
+
+monitor = UsageMonitor()
+
+
+def monitored_generate_speech(text: str, voice: str, model: str):
+    try:
+        audio = generate_speech(text, voice, model)
+        monitor.record_request(True, len(text))
+        return audio
+    except Exception as exc:
+        monitor.record_request(False, len(text), exc)
+        raise
+
+
+print(monitor.report())
+```
+
+</CodeGroup>
 
 ## Performance Optimization
 
@@ -405,33 +694,29 @@ console.log(monitor.getReport());
 
 Select models based on requirements:
 
-```javascript
-function selectOptimalModel(requirements) {
-  const { priority, useCase, latency } = requirements;
+<CodeGroup>
 
-  // Quality priority
+```javascript JavaScript
+function selectOptimalModel({ priority, useCase, latency }) {
   if (priority === 'quality') {
     return 'aurora-4';
   }
 
-  // Speed priority
   if (priority === 'speed' || latency < 1000) {
     return 'turbo-3';
   }
 
-  // Use case mapping
   const modelMap = {
-    'chatbot': 'turbo-3',
-    'podcast': 'aurora-3.5',
-    'audiobook': 'aurora-3.5',
-    'mobile': 'mini-2',
-    'broadcasting': 'aurora-4'
+    chatbot: 'turbo-3',
+    podcast: 'aurora-3.5',
+    audiobook: 'aurora-3.5',
+    mobile: 'mini-2',
+    broadcasting: 'aurora-4'
   };
 
   return modelMap[useCase] || 'aurora-3.5';
 }
 
-// Usage
 const model = selectOptimalModel({
   priority: 'speed',
   useCase: 'chatbot',
@@ -439,11 +724,37 @@ const model = selectOptimalModel({
 });
 ```
 
+```python Python
+def select_optimal_model(priority: str | None = None, use_case: str | None = None, latency: int | None = None) -> str:
+    if priority == 'quality':
+        return 'aurora-4'
+
+    if priority == 'speed' or (latency is not None and latency < 1000):
+        return 'turbo-3'
+
+    model_map = {
+        'chatbot': 'turbo-3',
+        'podcast': 'aurora-3.5',
+        'audiobook': 'aurora-3.5',
+        'mobile': 'mini-2',
+        'broadcasting': 'aurora-4',
+    }
+
+    return model_map.get(use_case, 'aurora-3.5')
+
+
+model = select_optimal_model(priority='speed', use_case='chatbot', latency=800)
+```
+
+</CodeGroup>
+
 ### Batch Processing
 
 Process multiple requests efficiently:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 async function batchGenerateSpeech(texts, voice, model, concurrency = 18) {
   const results = [];
   const executing = [];
@@ -465,22 +776,43 @@ async function batchGenerateSpeech(texts, voice, model, concurrency = 18) {
   return Promise.all(results);
 }
 
-// Usage
 const texts = ['text1', 'text2', 'text3'];
 const audios = await batchGenerateSpeech(texts, 'lyra', 'aurora-3.5', 18);
 ```
+
+```python Python
+import asyncio
+
+
+async def batch_generate_speech(texts: list[str], voice: str, model: str, concurrency: int = 18) -> list[bytes]:
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def generate(text: str) -> bytes:
+        async with semaphore:
+            return await generate_speech(text, voice, model)
+
+    tasks = [asyncio.create_task(generate(text)) for text in texts]
+    return await asyncio.gather(*tasks)
+
+
+texts = ['text1', 'text2', 'text3']
+audios = await batch_generate_speech(texts, 'lyra', 'aurora-3.5', 18)
+```
+
+</CodeGroup>
 
 ### Chunk Long Text
 
 Split long text for better processing:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 function smartChunk(text, maxChars = 4000) {
   if (text.length <= maxChars) {
     return [text];
   }
 
-  // Try to split on paragraphs
   const paragraphs = text.split(/\n\n+/);
   const chunks = [];
   let currentChunk = '';
@@ -489,7 +821,6 @@ function smartChunk(text, maxChars = 4000) {
     if ((currentChunk + paragraph).length > maxChars) {
       if (currentChunk) chunks.push(currentChunk.trim());
 
-      // If single paragraph is too long, split on sentences
       if (paragraph.length > maxChars) {
         const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
         let sentenceChunk = '';
@@ -513,16 +844,59 @@ function smartChunk(text, maxChars = 4000) {
   }
 
   if (currentChunk) chunks.push(currentChunk.trim());
-
   return chunks;
 }
 
-// Usage
 const chunks = smartChunk(longText);
 const audios = await Promise.all(
   chunks.map(chunk => generateSpeech(chunk, 'lyra', 'aurora-3.5'))
 );
 ```
+
+```python Python
+import re
+
+
+def smart_chunk(text: str, max_chars: int = 4000) -> list[str]:
+    if len(text) <= max_chars:
+        return [text]
+
+    paragraphs = re.split(r'\n\n+', text)
+    chunks: list[str] = []
+    current_chunk = ''
+
+    for paragraph in paragraphs:
+        if len(current_chunk + paragraph) > max_chars:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+
+            if len(paragraph) > max_chars:
+                sentences = re.findall(r'[^.!?]+[.!?]+', paragraph) or [paragraph]
+                sentence_chunk = ''
+                for sentence in sentences:
+                    if len(sentence_chunk + sentence) > max_chars:
+                        if sentence_chunk:
+                            chunks.append(sentence_chunk.strip())
+                        sentence_chunk = sentence
+                    else:
+                        sentence_chunk += sentence
+                current_chunk = sentence_chunk
+            else:
+                current_chunk = paragraph
+        else:
+            current_chunk += ('\n\n' if current_chunk else '') + paragraph
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+
+chunks = smart_chunk(long_text)
+audios = [generate_speech(chunk, 'lyra', 'aurora-3.5') for chunk in chunks]
+```
+
+</CodeGroup>
 
 ## Error Handling
 
@@ -530,19 +904,18 @@ const audios = await Promise.all(
 
 Handle all error scenarios:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 async function robustGenerateSpeech(text, voice, model) {
   try {
-    // Validate inputs
     validateSpeechRequest(text, voice, model);
 
-    // Check balance before request
     const balance = await getBalance();
     if (balance.remaining_credits < text.length) {
       throw new Error('Insufficient credits');
     }
 
-    // Generate speech with retry
     const audio = await exponentialBackoff(
       () => generateSpeech(text, voice, model),
       3
@@ -550,14 +923,12 @@ async function robustGenerateSpeech(text, voice, model) {
 
     return audio;
   } catch (error) {
-    // Log error
     console.error('Speech generation failed:', error);
 
-    // Handle specific errors
     if (error.code === 'INSUFFICIENT_CREDITS') {
-      // Alert user to add credits
+      // Notify finance team
     } else if (error.code === 'RATE_LIMIT_EXCEEDED') {
-      // Queue for later
+      // Queue for retry
     }
 
     throw error;
@@ -565,36 +936,55 @@ async function robustGenerateSpeech(text, voice, model) {
 }
 ```
 
+```python Python
+def robust_generate_speech(text: str, voice: str, model: str) -> bytes:
+    try:
+        validate_speech_request(text, voice, model)
+
+        balance = get_balance()
+        if balance['remaining_credits'] < len(text):
+            raise RuntimeError('Insufficient credits')
+
+        return exponential_backoff(lambda: generate_speech(text, voice, model), retries=3)
+    except Exception as exc:
+        print(f'Speech generation failed: {exc}')
+        if getattr(exc, 'code', None) == 'INSUFFICIENT_CREDITS':
+            pass  # Alert billing system
+        elif getattr(exc, 'code', None) == 'RATE_LIMIT_EXCEEDED':
+            pass  # Schedule retry
+        raise
+```
+
+</CodeGroup>
+
 ## Cost Optimization
 
 ### Monitor Credit Usage
 
 Track and optimize credit consumption:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class CreditManager {
   constructor() {
     this.dailyUsage = 0;
-    this.budgetLimit = 100000; // Daily limit
+    this.budgetLimit = 100000;
   }
 
   async checkAndRecordUsage(text) {
     const estimatedCredits = text.length;
 
-    // Check if within budget
     if (this.dailyUsage + estimatedCredits > this.budgetLimit) {
       throw new Error('Daily budget limit reached');
     }
 
-    // Get actual balance
     const balance = await getBalance();
     if (balance.remaining_credits < estimatedCredits) {
       throw new Error('Insufficient credits');
     }
 
-    // Record usage
     this.dailyUsage += estimatedCredits;
-
     return true;
   }
 
@@ -620,11 +1010,56 @@ async function budgetAwareGenerate(text, voice, model) {
 }
 ```
 
+```python Python
+class CreditManager:
+    def __init__(self, budget_limit: int = 100_000) -> None:
+        self.daily_usage = 0
+        self.budget_limit = budget_limit
+
+    def reset_daily(self) -> None:
+        self.daily_usage = 0
+
+    def usage(self) -> dict[str, float]:
+        remaining = self.budget_limit - self.daily_usage
+        percentage = 0.0 if self.budget_limit == 0 else (self.daily_usage / self.budget_limit) * 100
+        return {
+            'used': self.daily_usage,
+            'limit': self.budget_limit,
+            'remaining': remaining,
+            'percentage': round(percentage, 2),
+        }
+
+    def check_and_record_usage(self, text: str) -> bool:
+        estimated_credits = len(text)
+
+        if self.daily_usage + estimated_credits > self.budget_limit:
+            raise RuntimeError('Daily budget limit reached')
+
+        balance = get_balance()
+        if balance['remaining_credits'] < estimated_credits:
+            raise RuntimeError('Insufficient credits')
+
+        self.daily_usage += estimated_credits
+        return True
+
+
+credit_manager = CreditManager()
+
+
+def budget_aware_generate(text: str, voice: str, model: str) -> bytes:
+    credit_manager.check_and_record_usage(text)
+    return generate_speech(text, voice, model)
+```
+
+</CodeGroup>
+
 ### Use Appropriate Quality
 
 Don't over-provision quality:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 // ❌ Bad - Using premium quality for everything
 const audio = await generateSpeech(notification, 'lyra', 'aurora-4');
 
@@ -634,19 +1069,30 @@ const podcastAudio = await generateSpeech(episode, 'emma', 'aurora-3.5');
 const broadcastAudio = await generateSpeech(ad, 'marcus', 'aurora-4');
 ```
 
+```python Python
+# ❌ Bad - Using premium quality for everything
+audio = generate_speech(notification, 'lyra', 'aurora-4')
+
+# ✅ Good - Match quality to use case
+notification_audio = generate_speech(notification, 'lyra', 'mini-2')
+podcast_audio = generate_speech(episode, 'emma', 'aurora-3.5')
+broadcast_audio = generate_speech(ad, 'marcus', 'aurora-4')
+```
+
+</CodeGroup>
+
 ## Testing
 
 ### Mock API for Testing
 
 Use mocks in development:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class MockNeoSpeechAPI {
   async generateSpeech(text, voice, model) {
-    // Simulate latency
     await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Return mock audio
     return new Blob(['mock-audio-data'], { type: 'audio/mpeg' });
   }
 
@@ -667,11 +1113,39 @@ class MockNeoSpeechAPI {
   }
 }
 
-// Use mock in tests
 const api = process.env.NODE_ENV === 'test'
   ? new MockNeoSpeechAPI()
   : new NeoSpeechClient(process.env.NEOSPEECH_API_KEY);
 ```
+
+```python Python
+import asyncio
+
+
+class MockNeoSpeechAPI:
+    async def generate_speech(self, text: str, voice: str, model: str) -> bytes:
+        await asyncio.sleep(0.1)
+        return b'mock-audio-data'
+
+    async def list_voices(self) -> dict:
+        return {
+            'voices': [
+                {'id': 'lyra', 'name': 'Lyra', 'gender': 'female'},
+                {'id': 'kai', 'name': 'Kai', 'gender': 'male'},
+            ]
+        }
+
+    async def get_balance(self) -> dict:
+        return {
+            'remaining_credits': 100_000,
+            'plan_type': 'pro',
+        }
+
+
+api = MockNeoSpeechAPI() if os.getenv('ENV') == 'test' else NeoSpeechClient(os.environ['NEOSPEECH_API_KEY'])
+```
+
+</CodeGroup>
 
 ## Monitoring and Logging
 
@@ -679,7 +1153,9 @@ const api = process.env.NODE_ENV === 'test'
 
 Log API interactions for debugging:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 class APILogger {
   log(operation, params, result, error = null) {
     const logEntry = {
@@ -699,9 +1175,6 @@ class APILogger {
     };
 
     console.log(JSON.stringify(logEntry));
-
-    // Send to monitoring service
-    // this.sendToMonitoring(logEntry);
   }
 }
 
@@ -719,24 +1192,64 @@ async function loggedGenerateSpeech(text, voice, model) {
 }
 ```
 
+```python Python
+import json
+from datetime import datetime
+
+
+class APILogger:
+    def log(self, operation: str, params: dict, result: object | None, error: Exception | None = None) -> None:
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'operation': operation,
+            'params': params,
+            'success': error is None,
+            'error': {
+                'message': getattr(error, 'message', str(error)),
+                'code': getattr(error, 'code', None),
+                'status': getattr(error, 'status', None),
+            } if error else None,
+            'result': {
+                'size': getattr(result, 'size', None),
+                'type': getattr(result, 'type', None),
+            } if result else None,
+        }
+
+        print(json.dumps(log_entry))
+
+
+logger = APILogger()
+
+
+def logged_generate_speech(text: str, voice: str, model: str) -> bytes:
+    try:
+        audio = generate_speech(text, voice, model)
+        logger.log('generate_speech', {'text': text, 'voice': voice, 'model': model}, audio)
+        return audio
+    except Exception as exc:
+        logger.log('generate_speech', {'text': text, 'voice': voice, 'model': model}, None, exc)
+        raise
+```
+
+</CodeGroup>
+
 ## Security
 
 ### Input Sanitization
 
 Sanitize user inputs to prevent abuse:
 
-```javascript
+<CodeGroup>
+
+```javascript JavaScript
 function sanitizeAndValidate(text) {
-  // Remove excessive repetition
   text = text.replace(/(.)\1{10,}/g, '$1$1$1');
 
-  // Limit special characters
   const specialCharCount = (text.match(/[^a-zA-Z0-9\s.,!?]/g) || []).length;
   if (specialCharCount > text.length * 0.3) {
     throw new Error('Too many special characters');
   }
 
-  // Check for spam patterns
   if (/(.{1,20})\1{5,}/.test(text)) {
     throw new Error('Suspicious repetition detected');
   }
@@ -744,6 +1257,25 @@ function sanitizeAndValidate(text) {
   return text;
 }
 ```
+
+```python Python
+import re
+
+
+def sanitize_and_validate(text: str) -> str:
+    text = re.sub(r'(.)\1{10,}', r'\1\1\1', text)
+
+    special_chars = re.findall(r'[^a-zA-Z0-9\s.,!?]', text)
+    if len(special_chars) > len(text) * 0.3:
+        raise ValueError('Too many special characters')
+
+    if re.search(r'(.{1,20})\1{5,}', text):
+        raise ValueError('Suspicious repetition detected')
+
+    return text
+```
+
+</CodeGroup>
 
 ## Best Practices Summary
 

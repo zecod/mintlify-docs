@@ -1,0 +1,123 @@
+---
+title: Check Balance
+description: View your account credits and usage
+api: "GET https://api.neospeech.io/v1/balance"
+---
+
+Monitor your credit usage and remaining balance. Credits roughly equal characters processed, though exact usage varies by model.
+
+## Request
+
+```bash
+curl "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer sk-your-api-key"
+```
+
+## Parameters
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token: `Bearer sk-your-api-key`
+</ParamField>
+
+## Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_credits": 1000000,
+    "used_credits": 247850,
+    "remaining_credits": 752150,
+    "overage_credits": 0,
+    "overage_cost": 0.00,
+    "plan_type": "pro",
+    "billing_cycle": {
+      "start_date": "2025-09-01T00:00:00Z",
+      "end_date": "2025-10-01T00:00:00Z",
+      "days_remaining": 15
+    }
+  }
+}
+```
+
+## Common patterns
+
+### Check remaining credits
+
+```javascript
+const response = await fetch('https://api.neospeech.io/v1/balance', {
+  headers: { 'Authorization': `Bearer ${apiKey}` }
+});
+
+const { data } = await response.json();
+console.log(`${data.remaining_credits.toLocaleString()} credits remaining`);
+```
+
+### Verify before generation
+
+```javascript
+async function safeGenerate(text) {
+  const balance = await fetch('https://api.neospeech.io/v1/balance', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  }).then(r => r.json());
+
+  const estimatedCredits = text.length;
+
+  if (balance.data.remaining_credits < estimatedCredits) {
+    throw new Error('Insufficient credits');
+  }
+
+  // Proceed with generation
+  return generateSpeech(text);
+}
+```
+
+### Set up usage alerts
+
+```javascript
+async function checkUsageAlert() {
+  const response = await fetch('https://api.neospeech.io/v1/balance', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+
+  const { data } = await response.json();
+  const usagePercent = (data.used_credits / data.total_credits) * 100;
+
+  if (usagePercent >= 80) {
+    console.warn(`Warning: ${usagePercent.toFixed(1)}% of credits used`);
+    // Send alert to your monitoring system
+  }
+
+  return data;
+}
+```
+
+## Understanding credits
+
+Credits are consumed when you generate audio. The basic formula:
+
+- **1 credit ≈ 1 character** of input text
+- Premium models may use slightly more
+- Failed requests don't consume credits
+- Balance checks are free
+
+For example:
+- "Hello world" (11 chars) ≈ 11 credits
+- A 500-word article ≈ 2,500-3,000 credits
+- A short podcast script (5,000 chars) ≈ 5,000 credits
+
+## Plan types
+
+- **Free** - Limited access, basic features
+- **Pro** - 1M credits/month, 18 concurrent requests
+- **Business** - 5M+ credits/month, 25 concurrent requests
+
+Credits reset at the start of each billing cycle. Unused credits don't roll over.
+
+## Monitoring tips
+
+Check your balance regularly if you're running large batch operations. Set up alerts at 80% and 90% usage to avoid unexpected service interruptions.
+
+Cache balance data for a few minutes to reduce API calls. Balance checks don't consume credits, but frequent polling adds unnecessary load.
+
+Track usage patterns over time to understand your actual needs. This helps you choose the right plan and avoid overage charges.

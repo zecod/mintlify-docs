@@ -5,15 +5,15 @@ description: Understanding voice selection and characteristics
 
 ## Overview
 
-NeoSpeech offers 45+ high-quality voices across multiple languages, genders, and styles. Each voice is designed for specific use cases and delivers natural, human-like speech synthesis.
+NeoSpeech offers 50+ high-quality voices spanning 90+ languages, genders, and styles. Each voice is designed for specific use cases and delivers natural, human-like speech synthesis.
 
 ## Voice Library
 
 Our voice library includes:
 
-- **45+ unique voices** across multiple languages
+- **50+ unique voices** across global languages
 - **Multiple genders**: Male, female, and neutral options
-- **15+ languages**: English, Spanish, French, German, Japanese, Korean, and more
+- **90+ languages & locales**: English, Spanish, French, German, Japanese, Korean, and more
 - **Regional accents**: US, UK, Australian, and more
 - **Various styles**: Professional, conversational, energetic, calm
 
@@ -300,49 +300,44 @@ Ideal for audiobooks, podcasts, and long-form content:
 
 Always listen to voice samples before production:
 
-```javascript
-const voices = await listVoices();
-
-voices.voices.forEach(voice => {
-  console.log(`${voice.name}: ${voice.sample_url}`);
-});
+```bash
+curl -s "https://api.neospeech.io/v1/voices/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.voices[] | "\(.name): \(.sample_url)"'
 ```
 
 ### A/B Test Voices
 
 Test multiple voices with your audience:
 
-```javascript
-const voicesToTest = ['lyra', 'zara', 'marcus'];
-
-for (const voice of voicesToTest) {
-  const audio = await generateSpeech({
-    input: 'Your test message here',
-    voice: voice,
-    model: 'aurora-3.5'
-  });
-
-  // Present to test users and collect feedback
-  await presentToTestUsers(voice, audio);
-}
+```bash
+for voice in lyra zara marcus; do
+  curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+    -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\
+      \"input\": \"Your test message here\",\
+      \"voice\": \"${voice}\",\
+      \"model\": \"aurora-3.5\"\
+    }" \
+    --output "${voice}-test.mp3"
+done
 ```
 
 ### Test with Your Content
 
 Generate samples using your actual content:
 
-```javascript
-const sampleText = `
-  Welcome to our platform.
-  This is a sample of how our content will sound.
-  Please evaluate the voice quality and tone.
-`;
-
-const audio = await generateSpeech({
-  input: sampleText,
-  voice: 'lyra',
-  model: 'aurora-3.5'
-});
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Welcome to our platform. This is a sample of how our content will sound. Please evaluate the voice quality and tone.",
+    "voice": "lyra",
+    "model": "aurora-3.5"
+  }' \
+  --output sample-review.mp3
 ```
 
 ## Voice Customization
@@ -351,42 +346,58 @@ const audio = await generateSpeech({
 
 Adjust voice pitch to match your brand:
 
-```javascript
-// Higher pitch (more energetic)
-const audio1 = await generateSpeech({
-  voice: 'lyra',
-  pitch: '+15%',
-  input: 'Welcome to our service!'
-});
+```bash
+# Higher pitch (more energetic)
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voice": "lyra",
+    "pitch": "+15%",
+    "input": "Welcome to our service!"
+  }' \
+  --output lyra-high-pitch.mp3
 
-// Lower pitch (more authoritative)
-const audio2 = await generateSpeech({
-  voice: 'marcus',
-  pitch: '-10%',
-  input: 'This is an important announcement.'
-});
+# Lower pitch (more authoritative)
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voice": "marcus",
+    "pitch": "-10%",
+    "input": "This is an important announcement."
+  }' \
+  --output marcus-low-pitch.mp3
 ```
 
 ### Style Control
 
 Apply emotional styles to voices:
 
-```javascript
-// Excited style for promotional content
-const excited = await generateSpeech({
-  voice: 'kai',
-  style: 'excited',
-  styleDegree: '1.8',
-  input: 'Check out our amazing new features!'
-});
+```bash
+# Excited style for promotional content
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voice": "kai",
+    "style": "excited",
+    "styleDegree": "1.8",
+    "input": "Check out our amazing new features!"
+  }' \
+  --output kai-excited.mp3
 
-// Calm style for meditation content
-const calm = await generateSpeech({
-  voice: 'zara',
-  style: 'calm',
-  styleDegree: '1.2',
-  input: 'Take a deep breath and relax.'
-});
+# Calm style for meditation content
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voice": "zara",
+    "style": "calm",
+    "styleDegree": "1.2",
+    "input": "Take a deep breath and relax."
+  }' \
+  --output zara-calm.mp3
 ```
 
 ## Best Practices
@@ -436,27 +447,30 @@ Before finalizing your voice choice:
 
 ### List All Voices
 
-```javascript
-const allVoices = await listVoices();
-console.log(`Total voices: ${allVoices.pagination.total}`);
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list?limit=100" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
 ```
 
 ### Filter by Gender
 
-```javascript
-const femaleVoices = await listVoices({ gender: 'female' });
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list?gender=female" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
 ```
 
 ### Filter by Locale
 
-```javascript
-const usEnglishVoices = await listVoices({ locale: 'en-US' });
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list?locale=en-US" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
 ```
 
 ### Search by Name
 
-```javascript
-const professionalVoices = await listVoices({ search: 'professional' });
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list?search=professional" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
 ```
 
 ## Related Resources

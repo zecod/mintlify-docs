@@ -13,39 +13,39 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
   <Card title="Aurora 4" icon="crown">
     **Premium Quality**
 
-    48kHz, 192kbps, ~2.8s latency
+    48kHz, 192kbps, studio-grade detail
   </Card>
   <Card title="Aurora 3.5" icon="star">
     **High Quality** (Recommended)
 
-    48kHz, 96kbps, ~2.2s latency
+    48kHz, 96kbps, balanced performance
   </Card>
   <Card title="Aurora 3" icon="circle-check">
     **Standard Quality**
 
-    24kHz, 160kbps, ~1.8s latency
+    24kHz, 160kbps, everyday clarity
   </Card>
   <Card title="Turbo 3" icon="bolt">
     **Fast Processing**
 
-    16kHz, 64kbps, ~0.9s latency
+    16kHz, 64kbps, rapid responses
   </Card>
   <Card title="Mini 2" icon="mobile">
     **Lightweight**
 
-    24kHz, 48kbps, ~1.2s latency
+    24kHz, 48kbps, lightweight delivery
   </Card>
 </CardGroup>
 
 ## Model Comparison
 
-| Model | Quality | Sample Rate | Bitrate | Avg Latency | File Size | Best For |
-|-------|---------|-------------|---------|-------------|-----------|----------|
-| **aurora-4** | Premium | 48kHz | 192kbps | ~2.8s | Large | Broadcasting, professional media |
-| **aurora-3.5** | High | 48kHz | 96kbps | ~2.2s | Medium | Podcasts, audiobooks, e-learning |
-| **aurora-3** | Standard | 24kHz | 160kbps | ~1.8s | Medium | General content creation |
-| **turbo-3** | Good | 16kHz | 64kbps | ~0.9s | Small | Real-time apps, chatbots, IVR |
-| **mini-2** | Basic | 24kHz | 48kbps | ~1.2s | Small | IoT devices, mobile apps |
+| Model | Quality | Sample Rate | Bitrate | File Size | Best For |
+|-------|---------|-------------|---------|-----------|----------|
+| **aurora-4** | Premium | 48kHz | 192kbps | Large | Broadcasting, professional media |
+| **aurora-3.5** | High | 48kHz | 96kbps | Medium | Podcasts, audiobooks, e-learning |
+| **aurora-3** | Standard | 24kHz | 160kbps | Medium | General content creation |
+| **turbo-3** | Good | 16kHz | 64kbps | Small | Real-time apps, chatbots, IVR |
+| **mini-2** | Basic | 24kHz | 48kbps | Small | IoT devices, mobile apps |
 
 ## Model Details
 
@@ -54,7 +54,6 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     **Technical Specifications:**
     - Sample Rate: 48kHz
     - Bitrate: 192kbps
-    - Average Latency: 2.8 seconds
     - Quality Tier: Premium
     - File Size: ~24 KB per second of audio
 
@@ -88,12 +87,16 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     - High-volume processing with cost concerns
 
     **Example:**
-    ```javascript
-    const audio = await generateSpeech({
-      input: 'Professional corporate announcement.',
-      voice: 'lyra',
-      model: 'aurora-4'
-    });
+    ```bash
+    curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+      -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input": "Professional corporate announcement.",
+        "voice": "lyra",
+        "model": "aurora-4"
+      }' \
+      --output aurora-4-sample.mp3
     ```
   </Accordion>
 
@@ -101,7 +104,6 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     **Technical Specifications:**
     - Sample Rate: 48kHz
     - Bitrate: 96kbps
-    - Average Latency: 2.2 seconds
     - Quality Tier: High
     - File Size: ~12 KB per second of audio
 
@@ -134,12 +136,16 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     - Extremely bandwidth-constrained
 
     **Example:**
-    ```javascript
-    const audio = await generateSpeech({
-      input: 'Welcome to our podcast episode.',
-      voice: 'emma',
-      model: 'aurora-3.5'
-    });
+    ```bash
+    curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+      -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input": "Welcome to our podcast episode.",
+        "voice": "emma",
+        "model": "aurora-3.5"
+      }' \
+      --output aurora-35-sample.mp3
     ```
   </Accordion>
 
@@ -147,7 +153,6 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     **Technical Specifications:**
     - Sample Rate: 24kHz
     - Bitrate: 160kbps
-    - Average Latency: 1.8 seconds
     - Quality Tier: Standard
     - File Size: ~20 KB per second of audio
 
@@ -179,12 +184,16 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     - Critical business applications
 
     **Example:**
-    ```javascript
-    const audio = await generateSpeech({
-      input: 'This is a standard announcement.',
-      voice: 'kai',
-      model: 'aurora-3'
-    });
+    ```bash
+    curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+      -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input": "This is a standard announcement.",
+        "voice": "kai",
+        "model": "aurora-3"
+      }' \
+      --output aurora-3-sample.mp3
     ```
   </Accordion>
 
@@ -192,7 +201,6 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     **Technical Specifications:**
     - Sample Rate: 16kHz
     - Bitrate: 64kbps
-    - Average Latency: 0.9 seconds
     - Quality Tier: Good
     - File Size: ~8 KB per second of audio
 
@@ -226,12 +234,16 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     - Archival content
 
     **Example:**
-    ```javascript
-    const audio = await generateSpeech({
-      input: 'How can I help you today?',
-      voice: 'zara',
-      model: 'turbo-3'
-    });
+    ```bash
+    curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+      -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input": "How can I help you today?",
+        "voice": "zara",
+        "model": "turbo-3"
+      }' \
+      --output turbo-3-sample.mp3
     ```
   </Accordion>
 
@@ -239,7 +251,6 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     **Technical Specifications:**
     - Sample Rate: 24kHz
     - Bitrate: 48kbps
-    - Average Latency: 1.2 seconds
     - Quality Tier: Basic
     - File Size: ~6 KB per second of audio
 
@@ -274,12 +285,16 @@ NeoSpeech offers 5 specialized audio models, each optimized for different qualit
     - Long-form listening
 
     **Example:**
-    ```javascript
-    const audio = await generateSpeech({
-      input: 'Device ready.',
-      voice: 'kai',
-      model: 'mini-2'
-    });
+    ```bash
+    curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+      -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "input": "Device ready.",
+        "voice": "kai",
+        "model": "mini-2"
+      }' \
+      --output mini-2-sample.mp3
     ```
   </Accordion>
 </AccordionGroup>
@@ -388,8 +403,7 @@ Highest Quality ←────────────────────�
 
 Aurora 4    Aurora 3.5    Aurora 3    Turbo 3    Mini 2
   ↑            ↑            ↑           ↑          ↑
-Premium       High       Standard     Good      Basic
-2.8s         2.2s         1.8s       0.9s       1.2s
+Premium       High       Standard     Fast      Lightweight
 192kbps      96kbps      160kbps    64kbps     48kbps
 ```
 
@@ -407,79 +421,40 @@ For 1 minute (60 seconds) of audio:
 
 ## Model Selection Helper
 
-Programmatic model selection:
+Use the models endpoint to inspect specs programmatically.
 
-```javascript
-function selectModel(requirements) {
-  const {
-    priority,        // 'quality' | 'speed' | 'balanced'
-    useCase,         // specific use case
-    latencyTarget,   // target latency in ms
-    bandwidth,       // 'high' | 'medium' | 'low'
-    platform         // 'web' | 'mobile' | 'iot'
-  } = requirements;
+### Filter by Quality Tier
 
-  // Priority-based selection
-  if (priority === 'quality') {
-    return 'aurora-4';
-  }
+```bash
+curl -s "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.models[] | select(.quality == "premium") | "\(.id) — \(.description)"'
+```
 
-  if (priority === 'speed') {
-    return latencyTarget < 1000 ? 'turbo-3' : 'mini-2';
-  }
+### Spot Low-Bandwidth Options
 
-  // Platform-based selection
-  if (platform === 'iot' || platform === 'mobile') {
-    return 'mini-2';
-  }
+```bash
+curl -s "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.models[] | select(.bitrate == "48kbps" or .bitrate == "64kbps") | "\(.id): \(.bitrate)"'
+```
 
-  // Bandwidth-based selection
-  if (bandwidth === 'low') {
-    return 'mini-2';
-  }
+### Compare Sample Rates
 
-  // Use case-based selection
-  const useCaseMap = {
-    'broadcasting': 'aurora-4',
-    'podcast': 'aurora-3.5',
-    'audiobook': 'aurora-3.5',
-    'elearning': 'aurora-3.5',
-    'presentation': 'aurora-3.5',
-    'chatbot': 'turbo-3',
-    'ivr': 'turbo-3',
-    'gaming': 'turbo-3',
-    'social-media': 'aurora-3',
-    'documentation': 'aurora-3'
-  };
-
-  return useCaseMap[useCase] || 'aurora-3.5';
-}
-
-// Examples
-console.log(selectModel({ priority: 'quality' }));
-// Output: 'aurora-4'
-
-console.log(selectModel({ useCase: 'podcast' }));
-// Output: 'aurora-3.5'
-
-console.log(selectModel({ platform: 'mobile', bandwidth: 'low' }));
-// Output: 'mini-2'
-
-console.log(selectModel({ priority: 'speed', latencyTarget: 800 }));
-// Output: 'turbo-3'
+```bash
+curl -s "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.models[] | "\(.id)\t\(.sample_rate)"'
 ```
 
 ## Performance Considerations
 
-### Latency
+### Response Speed
 
-Average processing times (for 100 characters):
-
-- **Aurora 4:** ~2.8 seconds
-- **Aurora 3.5:** ~2.2 seconds
-- **Aurora 3:** ~1.8 seconds
-- **Turbo 3:** ~0.9 seconds (fastest)
-- **Mini 2:** ~1.2 seconds
+- **Aurora 4 & Aurora 3.5:** Prioritize fidelity and may take a touch longer to render.
+- **Aurora 3:** Balances speed and quality for everyday production workloads.
+- **Turbo 3:** Tuned for rapid turnarounds in live or interactive experiences.
+- **Mini 2:** Keeps responses quick while minimizing bandwidth usage.
 
 ### Bandwidth Requirements
 
@@ -527,41 +502,19 @@ All models cost the same per character, so choose based on quality and speed nee
 
 Compare models with your content:
 
-```javascript
-async function compareModels(text, voice) {
-  const models = ['aurora-4', 'aurora-3.5', 'aurora-3', 'turbo-3', 'mini-2'];
-  const results = [];
-
-  for (const model of models) {
-    const startTime = Date.now();
-
-    const audio = await generateSpeech({
-      input: text,
-      voice: voice,
-      model: model
-    });
-
-    const latency = Date.now() - startTime;
-    const size = audio.size;
-
-    results.push({
-      model,
-      latency,
-      size,
-      sizeKB: Math.round(size / 1024)
-    });
-
-    console.log(`${model}: ${latency}ms, ${Math.round(size / 1024)} KB`);
-  }
-
-  return results;
-}
-
-// Test with your content
-const comparison = await compareModels(
-  'This is a test message to compare audio models.',
-  'lyra'
-);
+```bash
+for model in aurora-4 aurora-3.5 aurora-3 turbo-3 mini-2; do
+  echo "Generating sample with ${model}..."
+  time curl -s "https://api.neospeech.io/v1/audio/speech" \
+    -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\
+      \"input\": \"This is a test message to compare audio models.\",\
+      \"voice\": \"lyra\",\
+      \"model\": \"${model}\"\
+    }" \
+    --output "${model}-comparison.mp3"
+done
 ```
 
 ## Related Resources
