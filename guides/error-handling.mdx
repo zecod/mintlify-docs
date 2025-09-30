@@ -1,0 +1,688 @@
+---
+title: "Error Handling Guide"
+description: Best practices for handling API errors effectively
+icon: "shield"
+---
+
+## Overview
+
+Proper error handling is essential for building reliable applications. This guide covers comprehensive strategies for handling errors, implementing retries, and gracefully degrading when issues occur.
+
+## Error Response Structure
+
+All API errors return this consistent format:
+
+```json
+{
+  "success": false,
+  "message": "Human-readable error description",
+  "error_code": "MACHINE_READABLE_CODE",
+  "retryable": true,
+  "details": {
+    "field": "Additional context"
+  }
+}
+```
+
+## Error Categories
+
+### Client Errors (Non-Retryable)
+
+These errors require fixing the request before retrying:
+
+<AccordionGroup>
+  <Accordion title="400 - Bad Request">
+    **Causes:**
+    - Invalid parameters
+    - Missing required fields
+    - Malformed JSON
+
+    **Solution:** Validate request before sending
+
+    ```javascript
+    function validateRequest(input, voice, model) {
+      if (!input || typeof input !== 'string') {
+        throw new Error('Input must be a non-empty string');
+      }
+
+      if (input.length > 5000) {
+        throw new Error('Input exceeds 5000 character limit');
+      }
+
+      if (!voice) {
+        throw new Error('Voice parameter is required');
+      }
+
+      if (!model) {
+        throw new Error('Model parameter is required');
+      }
+
+      return true;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="401 - Unauthorized">
+    **Causes:**
+    - Missing API key
+    - Invalid API key
+    - Incorrect format
+
+    **Solution:** Verify authentication
+
+    ```javascript
+    function checkApiKey() {
+      const apiKey = process.env.NEOSPEECH_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('NEOSPEECH_API_KEY environment variable not set');
+      }
+
+      if (!apiKey.startsWith('sk-')) {
+        throw new Error('Invalid API key format. Must start with "sk-"');
+      }
+
+      return apiKey;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="403 - Forbidden">
+    **Causes:**
+    - Plan restrictions
+    - Disabled API key
+    - Insufficient credits
+
+    **Solution:** Check account status
+
+    ```javascript
+    async function checkAccountStatus() {
+      const balance = await getBalance();
+
+      if (balance.remaining_credits < 1000) {
+        console.warn('Low credit balance:', balance.remaining_credits);
+        // Alert user or admin
+      }
+
+      if (balance.plan_type === 'free') {
+        throw new Error('Upgrade to Pro or Business plan required');
+      }
+
+      return balance;
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="413 - Payload Too Large">
+    **Causes:**
+    - Text exceeds 5000 characters
+
+    **Solution:** Split into chunks
+
+    ```javascript
+    function chunkText(text, maxChars = 5000) {
+      if (text.length <= maxChars) {
+        return [text];
+      }
+
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      const chunks = [];
+      let currentChunk = '';
+
+      for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > maxChars) {
+          if (currentChunk) chunks.push(currentChunk.trim());
+          currentChunk = sentence;
+        } else {
+          currentChunk += sentence;
+        }
+      }
+
+      if (currentChunk) chunks.push(currentChunk.trim());
+      return chunks;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Server Errors (Retryable)
+
+These errors can be retried with backoff:
+
+<AccordionGroup>
+  <Accordion title="429 - Rate Limit Exceeded">
+    **Causes:**
+    - Too many requests per minute
+    - Concurrent limit exceeded
+
+    **Solution:** Implement exponential backoff
+
+    ```javascript
+    async function requestWithRateLimit(requestFn, maxRetries = 3) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          return await requestFn();
+        } catch (error) {
+          if (error.status === 429) {
+            const retryAfter = error.retryAfter || Math.pow(2, attempt);
+            console.log(`Rate limited. Retrying in ${retryAfter}s...`);
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+          } else {
+            throw error;
+          }
+        }
+      }
+      throw new Error('Max retries exceeded');
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="500 - Internal Server Error">
+    **Causes:**
+    - Processing failures
+    - Internal service errors
+
+    **Solution:** Retry with backoff
+
+    ```javascript
+    async function requestWithRetry(requestFn, maxRetries = 3) {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          return await requestFn();
+        } catch (error) {
+          if (error.status >= 500 && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 1000;
+            console.log(`Server error. Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="503 - Service Unavailable">
+    **Causes:**
+    - Maintenance
+    - System overload
+
+    **Solution:** Respect Retry-After header
+
+    ```javascript
+    async function requestWithServiceCheck(requestFn) {
+      try {
+        return await requestFn();
+      } catch (error) {
+        if (error.status === 503) {
+          const retryAfter = error.retryAfter || 60;
+          console.log(`Service unavailable. Retry after ${retryAfter}s`);
+          // Queue for later or alert user
+          throw new Error(`Service temporarily unavailable. Try again in ${retryAfter}s`);
+        }
+        throw error;
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Custom Error Class
+
+Create a custom error class for better handling:
+
+```javascript
+class NeoSpeechError extends Error {
+  constructor(message, code, status, retryable, details) {
+    super(message);
+    this.name = 'NeoSpeechError';
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+    this.details = details;
+  }
+
+  isClientError() {
+    return this.status >= 400 && this.status < 500;
+  }
+
+  isServerError() {
+    return this.status >= 500;
+  }
+
+  isRateLimitError() {
+    return this.status === 429;
+  }
+
+  isAuthError() {
+    return this.status === 401 || this.status === 403;
+  }
+}
+
+// Parse API error response
+async function parseError(response) {
+  const error = await response.json();
+  throw new NeoSpeechError(
+    error.message || `HTTP ${response.status}`,
+    error.error_code,
+    response.status,
+    error.retryable || false,
+    error.details
+  );
+}
+
+// Usage
+try {
+  await generateSpeech('test', 'lyra', 'aurora-4');
+} catch (error) {
+  if (error instanceof NeoSpeechError) {
+    if (error.isAuthError()) {
+      console.error('Authentication issue:', error.message);
+      // Redirect to login or refresh token
+    } else if (error.isRateLimitError()) {
+      console.error('Rate limited:', error.message);
+      // Queue request for later
+    } else if (error.retryable) {
+      console.error('Retryable error:', error.message);
+      // Retry logic
+    }
+  }
+}
+```
+
+## Retry Strategies
+
+### Exponential Backoff
+
+Standard retry pattern with exponential delays:
+
+```javascript
+async function exponentialBackoff(
+  requestFn,
+  maxRetries = 3,
+  baseDelay = 1000,
+  maxDelay = 30000
+) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+
+      // Only retry if error is retryable
+      if (!error.retryable || isLastAttempt) {
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        baseDelay * Math.pow(2, attempt),
+        maxDelay
+      );
+
+      // Add jitter to prevent thundering herd
+      const jitter = Math.random() * 0.3 * delay;
+      const finalDelay = delay + jitter;
+
+      console.log(`Attempt ${attempt + 1} failed. Retrying in ${Math.round(finalDelay)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, finalDelay));
+    }
+  }
+}
+
+// Usage
+const audio = await exponentialBackoff(
+  () => generateSpeech('test', 'lyra', 'aurora-4'),
+  3,
+  1000,
+  10000
+);
+```
+
+### Smart Retry
+
+Retry based on error type:
+
+```javascript
+async function smartRetry(requestFn, options = {}) {
+  const {
+    maxRetries = 3,
+    retryOn = [429, 500, 502, 503, 504],
+    onRetry = null
+  } = options;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      const shouldRetry =
+        retryOn.includes(error.status) &&
+        attempt < maxRetries - 1;
+
+      if (!shouldRetry) {
+        throw error;
+      }
+
+      // Use Retry-After header if available
+      let delay;
+      if (error.retryAfter) {
+        delay = error.retryAfter * 1000;
+      } else {
+        delay = Math.pow(2, attempt) * 1000;
+      }
+
+      if (onRetry) {
+        onRetry(attempt + 1, delay, error);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
+// Usage
+const audio = await smartRetry(
+  () => generateSpeech('test', 'lyra', 'aurora-4'),
+  {
+    maxRetries: 5,
+    retryOn: [429, 500, 503],
+    onRetry: (attempt, delay, error) => {
+      console.log(`Retry ${attempt} after ${delay}ms: ${error.message}`);
+    }
+  }
+);
+```
+
+## Circuit Breaker Pattern
+
+Prevent cascading failures:
+
+```javascript
+class CircuitBreaker {
+  constructor(options = {}) {
+    this.failureThreshold = options.failureThreshold || 5;
+    this.resetTimeout = options.resetTimeout || 60000;
+    this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+    this.failures = 0;
+    this.nextAttempt = Date.now();
+  }
+
+  async execute(requestFn) {
+    if (this.state === 'OPEN') {
+      if (Date.now() < this.nextAttempt) {
+        throw new Error('Circuit breaker is OPEN');
+      }
+      this.state = 'HALF_OPEN';
+    }
+
+    try {
+      const result = await requestFn();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+
+  onSuccess() {
+    this.failures = 0;
+    this.state = 'CLOSED';
+  }
+
+  onFailure() {
+    this.failures++;
+    if (this.failures >= this.failureThreshold) {
+      this.state = 'OPEN';
+      this.nextAttempt = Date.now() + this.resetTimeout;
+      console.log(`Circuit breaker OPEN. Reset in ${this.resetTimeout}ms`);
+    }
+  }
+
+  getState() {
+    return this.state;
+  }
+}
+
+// Usage
+const breaker = new CircuitBreaker({
+  failureThreshold: 5,
+  resetTimeout: 60000
+});
+
+async function protectedRequest(text, voice, model) {
+  return breaker.execute(() => generateSpeech(text, voice, model));
+}
+```
+
+## Graceful Degradation
+
+Handle errors gracefully in production:
+
+```javascript
+async function generateSpeechWithFallback(text, voice, model) {
+  const fallbacks = [
+    { voice, model },
+    { voice, model: 'turbo-3' }, // Faster model
+    { voice: 'lyra', model: 'turbo-3' }, // Default voice
+  ];
+
+  for (const fallback of fallbacks) {
+    try {
+      return await generateSpeech(text, fallback.voice, fallback.model);
+    } catch (error) {
+      console.warn(`Failed with ${fallback.voice}/${fallback.model}:`, error.message);
+
+      // If not the last fallback, continue
+      if (fallback !== fallbacks[fallbacks.length - 1]) {
+        continue;
+      }
+
+      // Last fallback failed, throw error
+      throw error;
+    }
+  }
+}
+```
+
+## Error Logging
+
+Implement comprehensive error logging:
+
+```javascript
+class ErrorLogger {
+  constructor() {
+    this.errors = [];
+  }
+
+  log(error, context = {}) {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      retryable: error.retryable,
+      context,
+      stack: error.stack
+    };
+
+    this.errors.push(entry);
+
+    // Send to logging service
+    this.sendToLoggingService(entry);
+
+    // Console log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('API Error:', entry);
+    }
+  }
+
+  sendToLoggingService(entry) {
+    // Send to your logging service (e.g., Sentry, LogRocket)
+    // Example: Sentry.captureException(entry);
+  }
+
+  getRecentErrors(count = 10) {
+    return this.errors.slice(-count);
+  }
+
+  getErrorsByCode(code) {
+    return this.errors.filter(e => e.code === code);
+  }
+}
+
+const logger = new ErrorLogger();
+
+// Usage
+try {
+  await generateSpeech('test', 'lyra', 'aurora-4');
+} catch (error) {
+  logger.log(error, {
+    operation: 'generateSpeech',
+    input: 'test',
+    voice: 'lyra',
+    model: 'aurora-4'
+  });
+  throw error;
+}
+```
+
+## User-Friendly Error Messages
+
+Map error codes to user-friendly messages:
+
+```javascript
+const USER_ERROR_MESSAGES = {
+  'INVALID_API_KEY': 'Authentication failed. Please check your credentials.',
+  'INSUFFICIENT_CREDITS': 'You\'ve run out of credits. Please add more to continue.',
+  'TEXT_TOO_LONG': 'Your text is too long. Please split it into smaller parts.',
+  'RATE_LIMIT_EXCEEDED': 'Too many requests. Please wait a moment and try again.',
+  'VOICE_NOT_FOUND': 'The selected voice is not available. Please choose another.',
+  'PLAN_RESTRICTION': 'This feature requires a Pro or Business plan. Please upgrade.',
+  'SERVICE_UNAVAILABLE': 'Our service is temporarily unavailable. Please try again shortly.',
+  'PROCESSING_ERROR': 'We encountered an error processing your request. Please try again.'
+};
+
+function getUserFriendlyMessage(error) {
+  return USER_ERROR_MESSAGES[error.code] || 'An unexpected error occurred. Please try again.';
+}
+
+// Usage
+try {
+  await generateSpeech('test', 'lyra', 'aurora-4');
+} catch (error) {
+  const userMessage = getUserFriendlyMessage(error);
+  showErrorToUser(userMessage);
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Early" icon="check">
+    Validate inputs before making API calls
+  </Card>
+
+  <Card title="Use Custom Errors" icon="code">
+    Create custom error classes for better handling
+  </Card>
+
+  <Card title="Implement Retries" icon="rotate">
+    Use exponential backoff for retryable errors
+  </Card>
+
+  <Card title="Log Everything" icon="file-lines">
+    Log errors with context for debugging
+  </Card>
+
+  <Card title="Fail Gracefully" icon="shield">
+    Provide fallbacks and user-friendly messages
+  </Card>
+
+  <Card title="Monitor Errors" icon="chart-line">
+    Track error rates and patterns
+  </Card>
+
+  <Card title="Test Error Paths" icon="vial">
+    Test error handling in development
+  </Card>
+
+  <Card title="Circuit Breaking" icon="plug">
+    Prevent cascading failures with circuit breakers
+  </Card>
+</CardGroup>
+
+## Testing Error Handling
+
+Test your error handling logic:
+
+```javascript
+// Mock API for testing
+class MockAPI {
+  constructor() {
+    this.shouldFail = false;
+    this.failureType = 'rate_limit';
+  }
+
+  setFailure(type) {
+    this.shouldFail = true;
+    this.failureType = type;
+  }
+
+  clearFailure() {
+    this.shouldFail = false;
+  }
+
+  async generateSpeech(text, voice, model) {
+    if (this.shouldFail) {
+      switch (this.failureType) {
+        case 'rate_limit':
+          throw new NeoSpeechError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED', 429, true);
+        case 'auth':
+          throw new NeoSpeechError('Invalid API key', 'INVALID_API_KEY', 401, false);
+        case 'server':
+          throw new NeoSpeechError('Processing error', 'PROCESSING_ERROR', 500, true);
+      }
+    }
+
+    return 'mock-audio-data';
+  }
+}
+
+// Test error handling
+const mockAPI = new MockAPI();
+
+// Test rate limit handling
+mockAPI.setFailure('rate_limit');
+try {
+  await exponentialBackoff(() => mockAPI.generateSpeech('test', 'lyra', 'aurora-4'));
+} catch (error) {
+  console.log('Rate limit handling works');
+}
+
+// Test auth error handling
+mockAPI.setFailure('auth');
+try {
+  await smartRetry(() => mockAPI.generateSpeech('test', 'lyra', 'aurora-4'));
+} catch (error) {
+  console.log('Auth error handling works');
+}
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Error Reference" icon="book" href="/api-reference/errors">
+    Complete error codes and responses
+  </Card>
+  <Card title="Response Codes" icon="code" href="/api-reference/response-codes">
+    HTTP status code reference
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/concepts/rate-limits">
+    Understanding rate limits
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    General API best practices
+  </Card>
+</CardGroup>

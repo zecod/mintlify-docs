@@ -1,0 +1,578 @@
+---
+title: "cURL Examples"
+description: Complete command-line examples using cURL for the NeoSpeech API
+icon: "terminal"
+---
+
+## Setup
+
+Set your API key as an environment variable:
+
+```bash
+export NEOSPEECH_API_KEY="sk-your-api-key-here"
+```
+
+## Generate Speech
+
+### Basic Example
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Hello, world!",
+    "voice": "lyra",
+    "model": "aurora-4"
+  }' \
+  --output speech.mp3
+```
+
+### With All Options
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Welcome to our professional service!",
+    "voice": "lyra",
+    "model": "aurora-4",
+    "pitch": "+10%",
+    "style": "cheerful",
+    "styleDegree": "1.8",
+    "lang": "en-US"
+  }' \
+  --output professional-speech.mp3
+```
+
+### View Response Headers
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Testing response headers",
+    "voice": "lyra",
+    "model": "aurora-3.5"
+  }' \
+  -i \
+  --output test.mp3
+```
+
+Response headers:
+```
+HTTP/1.1 200 OK
+Content-Type: audio/mpeg
+Content-Length: 245760
+X-Character-Count: 24
+X-Model-Used: aurora-3.5
+X-Voice-Used: Lyra
+```
+
+### Different Voices
+
+```bash
+# Female voice - Lyra
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Female voice example", "voice": "lyra", "model": "aurora-3.5"}' \
+  --output lyra.mp3
+
+# Male voice - Kai
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Male voice example", "voice": "kai", "model": "aurora-3.5"}' \
+  --output kai.mp3
+
+# British voice - Emma
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "British voice example", "voice": "emma", "model": "aurora-3.5"}' \
+  --output emma.mp3
+```
+
+### Different Models
+
+```bash
+# Premium quality
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Premium quality audio", "voice": "lyra", "model": "aurora-4"}' \
+  --output aurora-4.mp3
+
+# High quality (recommended)
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "High quality audio", "voice": "lyra", "model": "aurora-3.5"}' \
+  --output aurora-3.5.mp3
+
+# Fast processing
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Fast processing audio", "voice": "lyra", "model": "turbo-3"}' \
+  --output turbo-3.mp3
+```
+
+### Voice Styles
+
+```bash
+# Calm style
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Calm and relaxed message", "voice": "zara", "model": "aurora-3.5", "style": "calm"}' \
+  --output calm.mp3
+
+# Excited style
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Exciting announcement!", "voice": "kai", "model": "aurora-3.5", "style": "excited", "styleDegree": "1.8"}' \
+  --output excited.mp3
+
+# Cheerful style
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Welcome to our service!", "voice": "lyra", "model": "aurora-3.5", "style": "cheerful", "styleDegree": "1.5"}' \
+  --output cheerful.mp3
+```
+
+### Pitch Adjustment
+
+```bash
+# Higher pitch
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Higher pitch example", "voice": "lyra", "model": "aurora-3.5", "pitch": "+20%"}' \
+  --output high-pitch.mp3
+
+# Lower pitch
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Lower pitch example", "voice": "marcus", "model": "aurora-3.5", "pitch": "-15%"}' \
+  --output low-pitch.mp3
+
+# Normal pitch
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Normal pitch example", "voice": "lyra", "model": "aurora-3.5", "pitch": "+0%"}' \
+  --output normal-pitch.mp3
+```
+
+## Stream Speech
+
+### Basic Streaming
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/stream" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "This is a streaming test",
+    "voice": "lyra",
+    "model": "aurora-3.5"
+  }' \
+  --output stream.mp3 \
+  --no-buffer
+```
+
+### Streaming with Progress
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/stream" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Long streaming content for real-time delivery",
+    "voice": "kai",
+    "model": "turbo-3"
+  }' \
+  --progress-bar \
+  --output streaming-progress.mp3
+```
+
+## Check Balance
+
+### Get Balance Information
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "total_credits": 1000000,
+    "used_credits": 247850,
+    "remaining_credits": 752150,
+    "overage_credits": 0,
+    "overage_cost": 0.00,
+    "plan_type": "pro",
+    "billing_cycle": {
+      "start_date": "2025-09-01T00:00:00Z",
+      "end_date": "2025-10-01T00:00:00Z",
+      "days_remaining": 15
+    }
+  }
+}
+```
+
+### Pretty Print Balance
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq .
+```
+
+### Extract Specific Fields
+
+```bash
+# Get remaining credits
+curl -s -X GET "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.remaining_credits'
+
+# Get plan type
+curl -s -X GET "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.plan_type'
+
+# Get days remaining
+curl -s -X GET "https://api.neospeech.io/v1/balance" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.billing_cycle.days_remaining'
+```
+
+## List Voices
+
+### Get All Voices
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Pretty Print Voices
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/voices/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq .
+```
+
+### Filter by Gender
+
+```bash
+# Female voices only
+curl -X GET "https://api.neospeech.io/v1/voices/list?gender=female" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Male voices only
+curl -X GET "https://api.neospeech.io/v1/voices/list?gender=male" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Filter by Locale
+
+```bash
+# US English voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?locale=en-US" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# British English voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?locale=en-GB" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Spanish voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?locale=es-ES" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Search Voices
+
+```bash
+# Search for professional voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?search=professional" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Search by name
+curl -X GET "https://api.neospeech.io/v1/voices/list?search=lyra" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Combined Filters
+
+```bash
+# Female US English voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?gender=female&locale=en-US" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Professional female voices
+curl -X GET "https://api.neospeech.io/v1/voices/list?gender=female&search=professional" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Pagination
+
+```bash
+# First page (20 results)
+curl -X GET "https://api.neospeech.io/v1/voices/list?limit=20&offset=0" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Second page
+curl -X GET "https://api.neospeech.io/v1/voices/list?limit=20&offset=20" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+
+# Get 50 results
+curl -X GET "https://api.neospeech.io/v1/voices/list?limit=50" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Extract Voice IDs
+
+```bash
+# List all voice IDs
+curl -s -X GET "https://api.neospeech.io/v1/voices/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.voices[].id'
+
+# List female voice IDs
+curl -s -X GET "https://api.neospeech.io/v1/voices/list?gender=female" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.voices[].id'
+```
+
+## List Models
+
+### Get All Models
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY"
+```
+
+### Pretty Print Models
+
+```bash
+curl -X GET "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq .
+```
+
+### Extract Model Information
+
+```bash
+# List model IDs
+curl -s -X GET "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.models[].id'
+
+# List recommended models
+curl -s -X GET "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq '.data.models[] | select(.recommended == true)'
+
+# Show model names and latencies
+curl -s -X GET "https://api.neospeech.io/v1/models/list" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  | jq -r '.data.models[] | "\(.name): \(.avg_latency_ms)ms"'
+```
+
+## Error Handling
+
+### Check for Errors
+
+```bash
+# Save response to file and check status
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "test", "voice": "lyra", "model": "aurora-4"}' \
+  -w "\nHTTP Status: %{http_code}\n" \
+  --output speech.mp3
+
+# Show only status code
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "test", "voice": "lyra", "model": "aurora-4"}' \
+  -o /dev/null \
+  -w "%{http_code}\n"
+```
+
+### Handle Invalid API Key
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer invalid-key" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "test", "voice": "lyra", "model": "aurora-4"}'
+```
+
+Response:
+```json
+{
+  "success": false,
+  "message": "Invalid API key provided.",
+  "error_code": "INVALID_API_KEY",
+  "retryable": false
+}
+```
+
+### Handle Text Too Long
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Very long text exceeding 5000 characters...",
+    "voice": "lyra",
+    "model": "aurora-4"
+  }'
+```
+
+Response:
+```json
+{
+  "success": false,
+  "message": "The provided text exceeds the 5000-character limit.",
+  "error_code": "TEXT_TOO_LONG",
+  "retryable": false,
+  "details": {
+    "provided": 7500,
+    "max_allowed": 5000
+  }
+}
+```
+
+## Batch Operations
+
+### Generate Multiple Files
+
+```bash
+#!/bin/bash
+
+voices=("lyra" "kai" "zara" "marcus")
+
+for voice in "${voices[@]}"; do
+  echo "Generating speech with $voice..."
+  curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+    -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"input\": \"This is a test with $voice\", \"voice\": \"$voice\", \"model\": \"aurora-3.5\"}" \
+    --output "${voice}.mp3"
+  echo "Saved ${voice}.mp3"
+done
+```
+
+### Process from File
+
+```bash
+#!/bin/bash
+
+# Read text from file
+text=$(cat input.txt)
+
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": \"$text\", \"voice\": \"lyra\", \"model\": \"aurora-4\"}" \
+  --output output.mp3
+```
+
+## Advanced Usage
+
+### Retry with Backoff
+
+```bash
+#!/bin/bash
+
+max_retries=3
+retry_delay=1
+
+for i in $(seq 1 $max_retries); do
+  echo "Attempt $i..."
+
+  response=$(curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+    -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"input": "test", "voice": "lyra", "model": "aurora-4"}' \
+    -w "\n%{http_code}" \
+    --output speech.mp3 \
+    -s)
+
+  http_code=$(echo "$response" | tail -n1)
+
+  if [ "$http_code" -eq 200 ]; then
+    echo "Success!"
+    exit 0
+  fi
+
+  echo "Failed with status $http_code"
+
+  if [ $i -lt $max_retries ]; then
+    echo "Retrying in ${retry_delay}s..."
+    sleep $retry_delay
+    retry_delay=$((retry_delay * 2))
+  fi
+done
+
+echo "All retries failed"
+exit 1
+```
+
+### Monitor Rate Limits
+
+```bash
+#!/bin/bash
+
+response=$(curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer $NEOSPEECH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "test", "voice": "lyra", "model": "aurora-4"}' \
+  -i \
+  -s \
+  --output speech.mp3)
+
+# Extract rate limit headers
+rate_limit=$(echo "$response" | grep -i "x-ratelimit-limit" | cut -d' ' -f2)
+rate_remaining=$(echo "$response" | grep -i "x-ratelimit-remaining" | cut -d' ' -f2)
+rate_reset=$(echo "$response" | grep -i "x-ratelimit-reset" | cut -d' ' -f2)
+
+echo "Rate Limit: $rate_remaining / $rate_limit"
+echo "Resets at: $(date -r $rate_reset)"
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="JavaScript Examples" icon="js" href="/examples/javascript">
+    JavaScript/Node.js examples
+  </Card>
+  <Card title="Python Examples" icon="python" href="/examples/python">
+    Python SDK examples
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/speech">
+    Complete API documentation
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimization tips
+  </Card>
+</CardGroup>

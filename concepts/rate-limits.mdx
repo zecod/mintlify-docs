@@ -1,0 +1,583 @@
+---
+title: "Rate Limits"
+description: Understanding API rate limits and concurrency controls
+---
+
+## Overview
+
+The NeoSpeech API implements rate limits to ensure fair usage and system stability. Rate limits vary by plan tier and endpoint type. Understanding these limits helps you build reliable, scalable applications.
+
+## Rate Limit Types
+
+### Request Rate Limits
+
+Maximum number of requests per time window:
+
+| Endpoint Type | Free Plan | Pro Plan | Business Plan |
+|--------------|-----------|----------|---------------|
+| Generation (Speech/Stream) | Not Available | 60/min | 120/min |
+| Balance | 30/min | 60/min | 120/min |
+| Voices List | 30/min | 60/min | 120/min |
+| Models List | 30/min | 60/min | 120/min |
+
+### Concurrent Request Limits
+
+Maximum simultaneous active requests:
+
+| Plan | Concurrent Requests | Queue Size |
+|------|---------------------|------------|
+| Free | Not Available | N/A |
+| Pro | 18 | 10 |
+| Business | 25 | 15 |
+
+### Character Limits
+
+Maximum characters per request:
+
+| Request Type | Limit |
+|-------------|-------|
+| Single Request | 5,000 characters |
+| Daily Total | Varies by plan credits |
+
+## Understanding Limits
+
+<AccordionGroup>
+  <Accordion title="Request Rate Limits">
+    **How it works:**
+    - Measured per minute
+    - Rolling window (not fixed intervals)
+    - Resets continuously
+    - Applies to all endpoints
+
+    **Example:**
+    - Pro plan: 60 requests per minute
+    - If you make 60 requests at 12:00:00
+    - At 12:00:01, you can make 1 more request
+    - At 12:01:00, you have full 60 requests available again
+
+    **Response when exceeded:**
+    ```json
+    {
+      "success": false,
+      "message": "Rate limit exceeded. Maximum 60 requests per minute.",
+      "error_code": "RATE_LIMIT_EXCEEDED",
+      "retryable": true,
+      "details": {
+        "retry_after": 45
+      }
+    }
+    ```
+
+    **Headers:**
+    ```
+    HTTP/1.1 429 Too Many Requests
+    X-RateLimit-Limit: 60
+    X-RateLimit-Remaining: 0
+    X-RateLimit-Reset: 1640995200
+    Retry-After: 45
+    ```
+  </Accordion>
+
+  <Accordion title="Concurrent Request Limits">
+    **How it works:**
+    - Limits simultaneous active requests
+    - Request counts as active until response completes
+    - Processing time varies by text length and model
+    - Queuing available for brief overages
+
+    **Example:**
+    - Pro plan: 18 concurrent requests
+    - You send 18 requests at once (all processing)
+    - 19th request will queue or be rejected
+    - As requests complete, queue processes
+
+    **Response when exceeded:**
+    ```json
+    {
+      "success": false,
+      "message": "Concurrent request limit exceeded. Maximum 18 concurrent requests.",
+      "error_code": "CONCURRENCY_LIMIT_EXCEEDED",
+      "retryable": true
+    }
+    ```
+
+    **Typical processing times:**
+    - Aurora 4: ~2.8s per request
+    - Aurora 3.5: ~2.2s per request
+    - Turbo 3: ~0.9s per request
+  </Accordion>
+
+  <Accordion title="Character Limits">
+    **How it works:**
+    - Maximum 5,000 characters per request
+    - Counted before processing
+    - Includes all text content
+    - No exceptions or overrides
+
+    **Response when exceeded:**
+    ```json
+    {
+      "success": false,
+      "message": "The provided text exceeds the 5000-character limit.",
+      "error_code": "TEXT_TOO_LONG",
+      "retryable": false,
+      "details": {
+        "provided": 7500,
+        "max_allowed": 5000
+      }
+    }
+    ```
+
+    **Solution:** Split long text into chunks
+  </Accordion>
+
+  <Accordion title="Credit Limits">
+    **How it works:**
+    - Roughly 1 credit per character
+    - Total credits based on plan
+    - Resets monthly on billing date
+    - Overage possible on some plans
+
+    **Pro Plan:**
+    - 1,000,000 credits per month
+    - Overage charges may apply
+
+    **Business Plan:**
+    - 5,000,000+ credits per month
+    - Custom limits available
+
+    **Response when exceeded:**
+    ```json
+    {
+      "success": false,
+      "message": "Insufficient credits remaining.",
+      "error_code": "INSUFFICIENT_CREDITS",
+      "retryable": false
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Rate Limit Headers
+
+Every API response includes rate limit headers:
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 42
+X-RateLimit-Reset: 1640995200
+```
+
+<ResponseField name="X-RateLimit-Limit" type="integer">
+  Maximum requests allowed in current time window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Remaining" type="integer">
+  Number of requests remaining in current window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Reset" type="integer">
+  Unix timestamp when rate limit resets
+</ResponseField>
+
+### Monitoring Rate Limits
+
+```javascript
+async function makeRequestWithRateLimit() {
+  const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+    method: 'POST',
+    headers: { /* ... */ },
+    body: JSON.stringify({ /* ... */ })
+  });
+
+  // Check rate limit headers
+  const limit = response.headers.get('X-RateLimit-Limit');
+  const remaining = response.headers.get('X-RateLimit-Remaining');
+  const reset = response.headers.get('X-RateLimit-Reset');
+
+  console.log(`Rate limit: ${remaining}/${limit}`);
+
+  // Warn when approaching limit
+  if (remaining < limit * 0.2) {
+    console.warn(`Approaching rate limit: ${remaining} requests remaining`);
+  }
+
+  // Calculate time until reset
+  const resetTime = new Date(reset * 1000);
+  console.log(`Resets at: ${resetTime.toLocaleTimeString()}`);
+
+  return response;
+}
+```
+
+## Handling Rate Limits
+
+### Exponential Backoff
+
+Retry failed requests with increasing delays:
+
+```javascript
+async function requestWithBackoff(url, options, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000;
+
+        console.log(`Rate limited. Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      if (attempt === maxRetries - 1) throw error;
+    }
+  }
+}
+```
+
+### Request Queue
+
+Queue requests to stay within limits:
+
+```javascript
+class RequestQueue {
+  constructor(maxConcurrent = 18, requestsPerMinute = 60) {
+    this.maxConcurrent = maxConcurrent;
+    this.requestsPerMinute = requestsPerMinute;
+    this.queue = [];
+    this.active = 0;
+    this.requestTimes = [];
+  }
+
+  async add(requestFn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ requestFn, resolve, reject });
+      this.processQueue();
+    });
+  }
+
+  async processQueue() {
+    // Check concurrent limit
+    if (this.active >= this.maxConcurrent) return;
+
+    // Check rate limit
+    const now = Date.now();
+    this.requestTimes = this.requestTimes.filter(t => now - t < 60000);
+
+    if (this.requestTimes.length >= this.requestsPerMinute) {
+      const oldestRequest = Math.min(...this.requestTimes);
+      const delay = 60000 - (now - oldestRequest);
+      setTimeout(() => this.processQueue(), delay);
+      return;
+    }
+
+    // Process next request
+    const item = this.queue.shift();
+    if (!item) return;
+
+    this.active++;
+    this.requestTimes.push(now);
+
+    try {
+      const result = await item.requestFn();
+      item.resolve(result);
+    } catch (error) {
+      item.reject(error);
+    } finally {
+      this.active--;
+      this.processQueue();
+    }
+  }
+}
+
+// Usage
+const queue = new RequestQueue(18, 60);
+
+async function generateSpeech(text, voice, model) {
+  return queue.add(async () => {
+    const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+      method: 'POST',
+      headers: { /* ... */ },
+      body: JSON.stringify({ input: text, voice, model })
+    });
+    return response.blob();
+  });
+}
+```
+
+### Throttling
+
+Limit request rate proactively:
+
+```javascript
+class RateLimiter {
+  constructor(requestsPerMinute) {
+    this.requestsPerMinute = requestsPerMinute;
+    this.interval = 60000 / requestsPerMinute;
+    this.lastRequest = 0;
+  }
+
+  async throttle() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequest;
+
+    if (timeSinceLastRequest < this.interval) {
+      const delay = this.interval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    this.lastRequest = Date.now();
+  }
+}
+
+// Usage
+const limiter = new RateLimiter(60);
+
+async function makeThrottledRequest() {
+  await limiter.throttle();
+  return fetch(/* ... */);
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Monitor Headers" icon="chart-line">
+    Check rate limit headers with every response
+  </Card>
+
+  <Card title="Implement Backoff" icon="clock">
+    Use exponential backoff for retries
+  </Card>
+
+  <Card title="Queue Requests" icon="list">
+    Queue requests to stay within limits
+  </Card>
+
+  <Card title="Cache Responses" icon="database">
+    Cache frequently used data to reduce requests
+  </Card>
+
+  <Card title="Batch Operations" icon="layer-group">
+    Combine operations when possible
+  </Card>
+
+  <Card title="Upgrade When Needed" icon="arrow-up">
+    Upgrade plan if regularly hitting limits
+  </Card>
+</CardGroup>
+
+## Chunking Long Text
+
+Split text over 5,000 characters:
+
+```javascript
+function chunkText(text, maxChars = 5000) {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > maxChars) {
+      if (currentChunk) chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += sentence;
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk.trim());
+  return chunks;
+}
+
+async function generateLongSpeech(text, voice, model) {
+  const chunks = chunkText(text);
+  const audioChunks = [];
+
+  for (const chunk of chunks) {
+    const audio = await generateSpeech(chunk, voice, model);
+    audioChunks.push(audio);
+  }
+
+  // Combine audio chunks
+  return combineAudioFiles(audioChunks);
+}
+```
+
+## Concurrency Management
+
+Manage concurrent requests effectively:
+
+```javascript
+async function processBatch(items, concurrency = 18) {
+  const results = [];
+  const executing = [];
+
+  for (const item of items) {
+    const promise = processItem(item).then(result => {
+      executing.splice(executing.indexOf(promise), 1);
+      return result;
+    });
+
+    results.push(promise);
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  return Promise.all(results);
+}
+
+// Usage
+const texts = ['text1', 'text2', /* ... */ 'text100'];
+const audios = await processBatch(texts, 18);
+```
+
+## Upgrade Benefits
+
+Higher limits available on Business plan:
+
+<CardGroup cols={2}>
+  <Card title="Pro Plan" icon="star">
+    **Limits:**
+    - 60 requests/minute
+    - 18 concurrent requests
+    - 1M credits/month
+
+    **Best For:** Small to medium businesses
+  </Card>
+
+  <Card title="Business Plan" icon="building">
+    **Limits:**
+    - 120 requests/minute
+    - 25 concurrent requests
+    - 5M+ credits/month
+    - Custom limits available
+
+    **Best For:** Large-scale production applications
+  </Card>
+</CardGroup>
+
+## Monitoring Usage
+
+Track usage to optimize performance:
+
+```javascript
+class UsageMonitor {
+  constructor() {
+    this.stats = {
+      requests: 0,
+      rateLimited: 0,
+      concurrencyLimited: 0,
+      averageLatency: 0,
+      totalLatency: 0
+    };
+  }
+
+  recordRequest(latency, rateLimited = false, concurrencyLimited = false) {
+    this.stats.requests++;
+    this.stats.totalLatency += latency;
+    this.stats.averageLatency = this.stats.totalLatency / this.stats.requests;
+
+    if (rateLimited) this.stats.rateLimited++;
+    if (concurrencyLimited) this.stats.concurrencyLimited++;
+  }
+
+  getReport() {
+    return {
+      ...this.stats,
+      rateLimitPercent: (this.stats.rateLimited / this.stats.requests * 100).toFixed(2),
+      concurrencyLimitPercent: (this.stats.concurrencyLimited / this.stats.requests * 100).toFixed(2)
+    };
+  }
+}
+```
+
+## Common Scenarios
+
+<AccordionGroup>
+  <Accordion title="Bulk Processing">
+    **Challenge:** Process 1,000 texts efficiently
+
+    **Solution:**
+    - Use request queue with concurrency limit
+    - Implement rate limiting
+    - Process in batches
+    - Monitor progress
+
+    ```javascript
+    const queue = new RequestQueue(18, 60);
+    const texts = [...]; // 1,000 texts
+
+    for (const text of texts) {
+      await queue.add(() => generateSpeech(text, 'lyra', 'aurora-3.5'));
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Real-Time Chat">
+    **Challenge:** Generate speech for chatbot responses
+
+    **Solution:**
+    - Use Turbo 3 model for speed
+    - Keep requests under concurrent limit
+    - Implement queue for bursts
+    - Monitor latency
+
+    ```javascript
+    const chatQueue = new RequestQueue(10, 60);
+
+    async function speakResponse(message) {
+      return chatQueue.add(() =>
+        generateSpeech(message, 'zara', 'turbo-3')
+      );
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Podcast Production">
+    **Challenge:** Generate full podcast episode
+
+    **Solution:**
+    - Chunk script into segments
+    - Process with appropriate concurrency
+    - Use Aurora 3.5 for quality
+    - Combine audio files
+
+    ```javascript
+    const script = readPodcastScript();
+    const chunks = chunkText(script, 4000);
+
+    const audioChunks = await processBatch(
+      chunks,
+      18,
+      (chunk) => generateSpeech(chunk, 'emma', 'aurora-3.5')
+    );
+
+    const podcast = combineAudio(audioChunks);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="shield" href="/api-reference/errors">
+    Handle rate limit errors
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimize API usage
+  </Card>
+  <Card title="Check Balance" icon="wallet" href="/api-reference/balance">
+    Monitor credit usage
+  </Card>
+  <Card title="Upgrade Plan" icon="arrow-up" href="https://neospeech.io">
+    Get higher limits
+  </Card>
+</CardGroup>

@@ -1,0 +1,582 @@
+---
+title: "Audio Models"
+description: Understanding audio model selection and specifications
+---
+
+## Overview
+
+NeoSpeech offers 5 specialized audio models, each optimized for different quality, speed, and use case requirements. Choose the model that best balances audio fidelity with processing latency for your application.
+
+## Available Models
+
+<CardGroup cols={2}>
+  <Card title="Aurora 4" icon="crown">
+    **Premium Quality**
+
+    48kHz, 192kbps, ~2.8s latency
+  </Card>
+  <Card title="Aurora 3.5" icon="star">
+    **High Quality** (Recommended)
+
+    48kHz, 96kbps, ~2.2s latency
+  </Card>
+  <Card title="Aurora 3" icon="circle-check">
+    **Standard Quality**
+
+    24kHz, 160kbps, ~1.8s latency
+  </Card>
+  <Card title="Turbo 3" icon="bolt">
+    **Fast Processing**
+
+    16kHz, 64kbps, ~0.9s latency
+  </Card>
+  <Card title="Mini 2" icon="mobile">
+    **Lightweight**
+
+    24kHz, 48kbps, ~1.2s latency
+  </Card>
+</CardGroup>
+
+## Model Comparison
+
+| Model | Quality | Sample Rate | Bitrate | Avg Latency | File Size | Best For |
+|-------|---------|-------------|---------|-------------|-----------|----------|
+| **aurora-4** | Premium | 48kHz | 192kbps | ~2.8s | Large | Broadcasting, professional media |
+| **aurora-3.5** | High | 48kHz | 96kbps | ~2.2s | Medium | Podcasts, audiobooks, e-learning |
+| **aurora-3** | Standard | 24kHz | 160kbps | ~1.8s | Medium | General content creation |
+| **turbo-3** | Good | 16kHz | 64kbps | ~0.9s | Small | Real-time apps, chatbots, IVR |
+| **mini-2** | Basic | 24kHz | 48kbps | ~1.2s | Small | IoT devices, mobile apps |
+
+## Model Details
+
+<AccordionGroup>
+  <Accordion title="Aurora 4 - Premium Quality">
+    **Technical Specifications:**
+    - Sample Rate: 48kHz
+    - Bitrate: 192kbps
+    - Average Latency: 2.8 seconds
+    - Quality Tier: Premium
+    - File Size: ~24 KB per second of audio
+
+    **Characteristics:**
+    - Highest audio fidelity
+    - Most natural-sounding speech
+    - Excellent clarity and detail
+    - Best dynamic range
+    - Professional studio quality
+
+    **Best Use Cases:**
+    - Broadcasting and radio production
+    - Professional video production
+    - High-end commercials
+    - Premium audiobook production
+    - Medical/legal documentation
+    - Mission-critical applications
+    - Audio with background music
+
+    **When to Use:**
+    - Quality is paramount
+    - Professional audience
+    - Content will be played on high-quality systems
+    - Budget allows for premium processing
+    - Latency is acceptable
+
+    **When to Avoid:**
+    - Real-time applications requiring low latency
+    - Bandwidth-constrained environments
+    - Mobile or IoT applications
+    - High-volume processing with cost concerns
+
+    **Example:**
+    ```javascript
+    const audio = await generateSpeech({
+      input: 'Professional corporate announcement.',
+      voice: 'lyra',
+      model: 'aurora-4'
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Aurora 3.5 - High Quality (Recommended)">
+    **Technical Specifications:**
+    - Sample Rate: 48kHz
+    - Bitrate: 96kbps
+    - Average Latency: 2.2 seconds
+    - Quality Tier: High
+    - File Size: ~12 KB per second of audio
+
+    **Characteristics:**
+    - Excellent audio quality
+    - Natural-sounding speech
+    - Great balance of quality and efficiency
+    - Clear and professional
+    - Recommended for most use cases
+
+    **Best Use Cases:**
+    - Podcast production
+    - Audiobook narration
+    - E-learning courses
+    - Educational videos
+    - Business presentations
+    - YouTube content
+    - Professional applications
+
+    **When to Use:**
+    - Need high quality without premium cost
+    - General professional content
+    - Most production scenarios
+    - Balanced quality-to-performance ratio required
+    - Default choice for most applications
+
+    **When to Avoid:**
+    - Absolute highest quality required
+    - Real-time low-latency requirements
+    - Extremely bandwidth-constrained
+
+    **Example:**
+    ```javascript
+    const audio = await generateSpeech({
+      input: 'Welcome to our podcast episode.',
+      voice: 'emma',
+      model: 'aurora-3.5'
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Aurora 3 - Standard Quality">
+    **Technical Specifications:**
+    - Sample Rate: 24kHz
+    - Bitrate: 160kbps
+    - Average Latency: 1.8 seconds
+    - Quality Tier: Standard
+    - File Size: ~20 KB per second of audio
+
+    **Characteristics:**
+    - Good audio quality
+    - Clear speech
+    - Standard professional output
+    - Balanced processing time
+    - Cost-effective
+
+    **Best Use Cases:**
+    - General content creation
+    - Social media content
+    - Internal training materials
+    - Documentation
+    - Casual podcasts
+    - Web content
+
+    **When to Use:**
+    - Standard quality sufficient
+    - Budget-conscious projects
+    - High-volume content generation
+    - Internal use applications
+    - Testing and development
+
+    **When to Avoid:**
+    - Premium quality needed
+    - Professional broadcast
+    - Critical business applications
+
+    **Example:**
+    ```javascript
+    const audio = await generateSpeech({
+      input: 'This is a standard announcement.',
+      voice: 'kai',
+      model: 'aurora-3'
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Turbo 3 - Fast Processing">
+    **Technical Specifications:**
+    - Sample Rate: 16kHz
+    - Bitrate: 64kbps
+    - Average Latency: 0.9 seconds
+    - Quality Tier: Good
+    - File Size: ~8 KB per second of audio
+
+    **Characteristics:**
+    - Fast processing
+    - Low latency
+    - Good intelligibility
+    - Optimized for speed
+    - Real-time capable
+
+    **Best Use Cases:**
+    - Real-time chatbots
+    - Virtual assistants
+    - IVR systems
+    - Gaming applications
+    - Live streaming
+    - Interactive experiences
+    - Phone systems
+
+    **When to Use:**
+    - Speed is critical
+    - Real-time interaction required
+    - Low latency needed
+    - Conversational applications
+    - High-frequency requests
+
+    **When to Avoid:**
+    - Quality is top priority
+    - Professional media production
+    - Long-form content
+    - Archival content
+
+    **Example:**
+    ```javascript
+    const audio = await generateSpeech({
+      input: 'How can I help you today?',
+      voice: 'zara',
+      model: 'turbo-3'
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Mini 2 - Lightweight">
+    **Technical Specifications:**
+    - Sample Rate: 24kHz
+    - Bitrate: 48kbps
+    - Average Latency: 1.2 seconds
+    - Quality Tier: Basic
+    - File Size: ~6 KB per second of audio
+
+    **Characteristics:**
+    - Small file sizes
+    - Low bandwidth usage
+    - Basic audio quality
+    - Resource-efficient
+    - Mobile-optimized
+
+    **Best Use Cases:**
+    - IoT devices
+    - Mobile applications
+    - Low-bandwidth scenarios
+    - Embedded systems
+    - Smart home devices
+    - Prototyping
+    - Development testing
+
+    **When to Use:**
+    - Resource constraints
+    - Limited bandwidth
+    - Mobile/IoT deployment
+    - Small file sizes critical
+    - Battery efficiency important
+    - Quick prototyping
+
+    **When to Avoid:**
+    - Quality is important
+    - Professional use
+    - Marketing or customer-facing content
+    - Long-form listening
+
+    **Example:**
+    ```javascript
+    const audio = await generateSpeech({
+      input: 'Device ready.',
+      voice: 'kai',
+      model: 'mini-2'
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Choosing the Right Model
+
+### Decision Tree
+
+```
+What is your primary requirement?
+
+Quality Priority → Aurora 4 or Aurora 3.5
+├── Professional broadcast/media → Aurora 4
+└── General professional use → Aurora 3.5
+
+Speed Priority → Turbo 3 or Mini 2
+├── Real-time interaction → Turbo 3
+└── Resource constraints → Mini 2
+
+Balanced → Aurora 3.5
+└── Best overall compromise
+```
+
+### By Use Case
+
+<CardGroup cols={2}>
+  <Card title="Broadcasting & Radio" icon="tower-broadcast">
+    **Model:** Aurora 4
+
+    Premium quality for professional media
+  </Card>
+
+  <Card title="Podcasts & Audiobooks" icon="podcast">
+    **Model:** Aurora 3.5
+
+    High quality for long-form listening
+  </Card>
+
+  <Card title="E-Learning Courses" icon="graduation-cap">
+    **Model:** Aurora 3.5
+
+    Clear, professional educational content
+  </Card>
+
+  <Card title="Business Presentations" icon="presentation">
+    **Model:** Aurora 3.5
+
+    Professional quality for corporate use
+  </Card>
+
+  <Card title="Virtual Assistants" icon="robot">
+    **Model:** Turbo 3
+
+    Fast response for real-time interaction
+  </Card>
+
+  <Card title="IVR Systems" icon="phone">
+    **Model:** Turbo 3
+
+    Low latency for phone systems
+  </Card>
+
+  <Card title="Gaming" icon="gamepad">
+    **Model:** Turbo 3
+
+    Quick generation for game dialogue
+  </Card>
+
+  <Card title="Mobile Apps" icon="mobile">
+    **Model:** Mini 2
+
+    Small files for mobile delivery
+  </Card>
+
+  <Card title="IoT Devices" icon="microchip">
+    **Model:** Mini 2
+
+    Lightweight for embedded systems
+  </Card>
+
+  <Card title="Social Media" icon="share-nodes">
+    **Model:** Aurora 3
+
+    Good quality for web content
+  </Card>
+
+  <Card title="Testing & Development" icon="flask">
+    **Model:** Mini 2 or Aurora 3
+
+    Fast, cost-effective testing
+  </Card>
+
+  <Card title="Documentation" icon="file-text">
+    **Model:** Aurora 3
+
+    Clear narration for docs
+  </Card>
+</CardGroup>
+
+## Quality vs Speed Trade-offs
+
+### Audio Quality Spectrum
+
+```
+Highest Quality ←─────────────────────→ Fastest Speed
+
+Aurora 4    Aurora 3.5    Aurora 3    Turbo 3    Mini 2
+  ↑            ↑            ↑           ↑          ↑
+Premium       High       Standard     Good      Basic
+2.8s         2.2s         1.8s       0.9s       1.2s
+192kbps      96kbps      160kbps    64kbps     48kbps
+```
+
+### File Size Comparison
+
+For 1 minute (60 seconds) of audio:
+
+| Model | File Size | Quality |
+|-------|-----------|---------|
+| Aurora 4 | ~1.4 MB | Premium |
+| Aurora 3.5 | ~720 KB | High |
+| Aurora 3 | ~1.2 MB | Standard |
+| Turbo 3 | ~480 KB | Good |
+| Mini 2 | ~360 KB | Basic |
+
+## Model Selection Helper
+
+Programmatic model selection:
+
+```javascript
+function selectModel(requirements) {
+  const {
+    priority,        // 'quality' | 'speed' | 'balanced'
+    useCase,         // specific use case
+    latencyTarget,   // target latency in ms
+    bandwidth,       // 'high' | 'medium' | 'low'
+    platform         // 'web' | 'mobile' | 'iot'
+  } = requirements;
+
+  // Priority-based selection
+  if (priority === 'quality') {
+    return 'aurora-4';
+  }
+
+  if (priority === 'speed') {
+    return latencyTarget < 1000 ? 'turbo-3' : 'mini-2';
+  }
+
+  // Platform-based selection
+  if (platform === 'iot' || platform === 'mobile') {
+    return 'mini-2';
+  }
+
+  // Bandwidth-based selection
+  if (bandwidth === 'low') {
+    return 'mini-2';
+  }
+
+  // Use case-based selection
+  const useCaseMap = {
+    'broadcasting': 'aurora-4',
+    'podcast': 'aurora-3.5',
+    'audiobook': 'aurora-3.5',
+    'elearning': 'aurora-3.5',
+    'presentation': 'aurora-3.5',
+    'chatbot': 'turbo-3',
+    'ivr': 'turbo-3',
+    'gaming': 'turbo-3',
+    'social-media': 'aurora-3',
+    'documentation': 'aurora-3'
+  };
+
+  return useCaseMap[useCase] || 'aurora-3.5';
+}
+
+// Examples
+console.log(selectModel({ priority: 'quality' }));
+// Output: 'aurora-4'
+
+console.log(selectModel({ useCase: 'podcast' }));
+// Output: 'aurora-3.5'
+
+console.log(selectModel({ platform: 'mobile', bandwidth: 'low' }));
+// Output: 'mini-2'
+
+console.log(selectModel({ priority: 'speed', latencyTarget: 800 }));
+// Output: 'turbo-3'
+```
+
+## Performance Considerations
+
+### Latency
+
+Average processing times (for 100 characters):
+
+- **Aurora 4:** ~2.8 seconds
+- **Aurora 3.5:** ~2.2 seconds
+- **Aurora 3:** ~1.8 seconds
+- **Turbo 3:** ~0.9 seconds (fastest)
+- **Mini 2:** ~1.2 seconds
+
+### Bandwidth Requirements
+
+Streaming bandwidth needed:
+
+- **Aurora 4:** ~192 kbps
+- **Aurora 3.5:** ~96 kbps
+- **Aurora 3:** ~160 kbps
+- **Turbo 3:** ~64 kbps
+- **Mini 2:** ~48 kbps (lowest)
+
+### Cost Efficiency
+
+All models cost the same per character, so choose based on quality and speed needs, not cost per request.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start with Aurora 3.5" icon="star">
+    Default to Aurora 3.5 for most use cases
+  </Card>
+
+  <Card title="Test Multiple Models" icon="vial">
+    Compare models with your content before deciding
+  </Card>
+
+  <Card title="Match Use Case" icon="bullseye">
+    Choose model appropriate for application type
+  </Card>
+
+  <Card title="Consider Audience" icon="users">
+    Factor in how users will consume content
+  </Card>
+
+  <Card title="Balance Quality & Speed" icon="scale-balanced">
+    Find optimal balance for your requirements
+  </Card>
+
+  <Card title="Monitor Performance" icon="chart-line">
+    Track latency and quality metrics
+  </Card>
+</CardGroup>
+
+## Testing Models
+
+Compare models with your content:
+
+```javascript
+async function compareModels(text, voice) {
+  const models = ['aurora-4', 'aurora-3.5', 'aurora-3', 'turbo-3', 'mini-2'];
+  const results = [];
+
+  for (const model of models) {
+    const startTime = Date.now();
+
+    const audio = await generateSpeech({
+      input: text,
+      voice: voice,
+      model: model
+    });
+
+    const latency = Date.now() - startTime;
+    const size = audio.size;
+
+    results.push({
+      model,
+      latency,
+      size,
+      sizeKB: Math.round(size / 1024)
+    });
+
+    console.log(`${model}: ${latency}ms, ${Math.round(size / 1024)} KB`);
+  }
+
+  return results;
+}
+
+// Test with your content
+const comparison = await compareModels(
+  'This is a test message to compare audio models.',
+  'lyra'
+);
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="List Models API" icon="list" href="/api-reference/models">
+    Get complete model specifications
+  </Card>
+  <Card title="Generate Speech" icon="waveform" href="/api-reference/speech">
+    Create audio with selected model
+  </Card>
+  <Card title="Voices Guide" icon="microphone" href="/concepts/voices">
+    Choose the right voice
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimize model usage
+  </Card>
+</CardGroup>

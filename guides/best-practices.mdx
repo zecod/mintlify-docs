@@ -1,0 +1,799 @@
+---
+title: "API Best Practices"
+description: Best practices for building reliable, efficient applications
+icon: "lightbulb"
+---
+
+## Overview
+
+This guide covers best practices for using the NeoSpeech API effectively. Following these recommendations will help you build reliable, performant, and cost-efficient applications.
+
+## Authentication
+
+### Secure API Key Storage
+
+Never expose your API key in client-side code or version control:
+
+<CodeGroup>
+
+```javascript JavaScript
+// ✅ Good - Use environment variables
+const apiKey = process.env.NEOSPEECH_API_KEY;
+
+// ❌ Bad - Hardcoded key
+const apiKey = 'sk-abc123xyz789';
+```
+
+```python Python
+# ✅ Good - Use environment variables
+import os
+api_key = os.getenv('NEOSPEECH_API_KEY')
+
+# ❌ Bad - Hardcoded key
+api_key = 'sk-abc123xyz789'
+```
+
+</CodeGroup>
+
+### Use Server-Side Proxy
+
+For client-side applications, proxy requests through your backend:
+
+```javascript
+// Client-side code
+async function generateSpeech(text, voice, model) {
+  // Request goes to your backend, not directly to API
+  const response = await fetch('/api/generate-speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, model })
+  });
+
+  return await response.blob();
+}
+
+// Backend code (Node.js/Express)
+app.post('/api/generate-speech', async (req, res) => {
+  const { text, voice, model } = req.body;
+
+  // Validate request
+  if (!text || text.length > 5000) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+
+  // Make request to NeoSpeech API with server-stored key
+  const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.NEOSPEECH_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ input: text, voice, model })
+  });
+
+  const audio = await response.blob();
+  res.set('Content-Type', 'audio/mpeg');
+  res.send(Buffer.from(await audio.arrayBuffer()));
+});
+```
+
+## Input Validation
+
+### Client-Side Validation
+
+Validate inputs before making API requests:
+
+```javascript
+function validateSpeechRequest(text, voice, model) {
+  const errors = [];
+
+  // Check text
+  if (!text || typeof text !== 'string') {
+    errors.push('Text must be a non-empty string');
+  } else if (text.trim().length === 0) {
+    errors.push('Text cannot be only whitespace');
+  } else if (text.length > 5000) {
+    errors.push('Text exceeds 5000 character limit');
+  }
+
+  // Check voice
+  if (!voice || typeof voice !== 'string') {
+    errors.push('Voice must be specified');
+  }
+
+  // Check model
+  const validModels = ['aurora-4', 'aurora-3.5', 'aurora-3', 'turbo-3', 'mini-2'];
+  if (!validModels.includes(model)) {
+    errors.push(`Model must be one of: ${validModels.join(', ')}`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join('; '));
+  }
+
+  return true;
+}
+
+// Usage
+try {
+  validateSpeechRequest(text, voice, model);
+  const audio = await generateSpeech(text, voice, model);
+} catch (error) {
+  console.error('Validation failed:', error.message);
+}
+```
+
+### Sanitize Input
+
+Clean and sanitize text input:
+
+```javascript
+function sanitizeText(text) {
+  // Remove excessive whitespace
+  text = text.replace(/\s+/g, ' ').trim();
+
+  // Remove potentially problematic characters
+  text = text.replace(/[\x00-\x1F\x7F]/g, '');
+
+  // Limit length
+  if (text.length > 5000) {
+    text = text.substring(0, 5000);
+    console.warn('Text truncated to 5000 characters');
+  }
+
+  return text;
+}
+
+// Usage
+const cleanText = sanitizeText(userInput);
+const audio = await generateSpeech(cleanText, 'lyra', 'aurora-3.5');
+```
+
+## Caching
+
+### Cache Generated Audio
+
+Cache frequently requested audio to reduce costs:
+
+```javascript
+class AudioCache {
+  constructor(maxSize = 100) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  generateKey(text, voice, model) {
+    return `${voice}:${model}:${text}`;
+  }
+
+  get(text, voice, model) {
+    const key = this.generateKey(text, voice, model);
+    return this.cache.get(key);
+  }
+
+  set(text, voice, model, audio) {
+    const key = this.generateKey(text, voice, model);
+
+    // Implement LRU eviction
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+
+    this.cache.set(key, audio);
+  }
+
+  has(text, voice, model) {
+    const key = this.generateKey(text, voice, model);
+    return this.cache.has(key);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+const audioCache = new AudioCache(100);
+
+async function getCachedSpeech(text, voice, model) {
+  // Check cache first
+  if (audioCache.has(text, voice, model)) {
+    console.log('Cache hit');
+    return audioCache.get(text, voice, model);
+  }
+
+  // Generate and cache
+  console.log('Cache miss, generating...');
+  const audio = await generateSpeech(text, voice, model);
+  audioCache.set(text, voice, model, audio);
+
+  return audio;
+}
+```
+
+### Cache Voice and Model Lists
+
+Cache static data to reduce API calls:
+
+```javascript
+class APICache {
+  constructor(ttl = 3600000) { // 1 hour default
+    this.cache = new Map();
+    this.ttl = ttl;
+  }
+
+  set(key, value) {
+    this.cache.set(key, {
+      value,
+      expires: Date.now() + this.ttl
+    });
+  }
+
+  get(key) {
+    const entry = this.cache.get(key);
+
+    if (!entry) return null;
+
+    if (Date.now() > entry.expires) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.value;
+  }
+}
+
+const apiCache = new APICache(3600000);
+
+async function getCachedVoices() {
+  const cached = apiCache.get('voices');
+  if (cached) return cached;
+
+  const voices = await listVoices();
+  apiCache.set('voices', voices);
+
+  return voices;
+}
+
+async function getCachedModels() {
+  const cached = apiCache.get('models');
+  if (cached) return cached;
+
+  const models = await listModels();
+  apiCache.set('models', models);
+
+  return models;
+}
+```
+
+## Rate Limiting
+
+### Implement Request Queue
+
+Queue requests to respect rate limits:
+
+```javascript
+class RateLimitedQueue {
+  constructor(requestsPerMinute = 60, concurrentRequests = 18) {
+    this.requestsPerMinute = requestsPerMinute;
+    this.concurrentRequests = concurrentRequests;
+    this.queue = [];
+    this.active = 0;
+    this.requestTimes = [];
+  }
+
+  async add(requestFn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ requestFn, resolve, reject });
+      this.processQueue();
+    });
+  }
+
+  async processQueue() {
+    // Check concurrent limit
+    if (this.active >= this.concurrentRequests) {
+      return;
+    }
+
+    // Check rate limit
+    const now = Date.now();
+    this.requestTimes = this.requestTimes.filter(t => now - t < 60000);
+
+    if (this.requestTimes.length >= this.requestsPerMinute) {
+      const delay = 60000 - (now - Math.min(...this.requestTimes));
+      setTimeout(() => this.processQueue(), delay);
+      return;
+    }
+
+    // Get next request
+    const item = this.queue.shift();
+    if (!item) return;
+
+    this.active++;
+    this.requestTimes.push(now);
+
+    try {
+      const result = await item.requestFn();
+      item.resolve(result);
+    } catch (error) {
+      item.reject(error);
+    } finally {
+      this.active--;
+      this.processQueue();
+    }
+  }
+}
+
+// Usage
+const queue = new RateLimitedQueue(60, 18);
+
+async function queuedGenerateSpeech(text, voice, model) {
+  return queue.add(() => generateSpeech(text, voice, model));
+}
+```
+
+### Monitor Usage
+
+Track API usage to stay within limits:
+
+```javascript
+class UsageMonitor {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.stats = {
+      totalRequests: 0,
+      successfulRequests: 0,
+      failedRequests: 0,
+      totalCharacters: 0,
+      rateLimitHits: 0,
+      errors: {}
+    };
+  }
+
+  recordRequest(success, characters, error = null) {
+    this.stats.totalRequests++;
+
+    if (success) {
+      this.stats.successfulRequests++;
+      this.stats.totalCharacters += characters;
+    } else {
+      this.stats.failedRequests++;
+
+      if (error) {
+        const code = error.code || 'UNKNOWN';
+        this.stats.errors[code] = (this.stats.errors[code] || 0) + 1;
+
+        if (error.status === 429) {
+          this.stats.rateLimitHits++;
+        }
+      }
+    }
+  }
+
+  getReport() {
+    return {
+      ...this.stats,
+      successRate: (this.stats.successfulRequests / this.stats.totalRequests * 100).toFixed(2) + '%',
+      avgCharactersPerRequest: Math.round(this.stats.totalCharacters / this.stats.successfulRequests)
+    };
+  }
+}
+
+const monitor = new UsageMonitor();
+
+async function monitoredGenerateSpeech(text, voice, model) {
+  try {
+    const audio = await generateSpeech(text, voice, model);
+    monitor.recordRequest(true, text.length);
+    return audio;
+  } catch (error) {
+    monitor.recordRequest(false, text.length, error);
+    throw error;
+  }
+}
+
+// Get usage report
+console.log(monitor.getReport());
+```
+
+## Performance Optimization
+
+### Choose Appropriate Models
+
+Select models based on requirements:
+
+```javascript
+function selectOptimalModel(requirements) {
+  const { priority, useCase, latency } = requirements;
+
+  // Quality priority
+  if (priority === 'quality') {
+    return 'aurora-4';
+  }
+
+  // Speed priority
+  if (priority === 'speed' || latency < 1000) {
+    return 'turbo-3';
+  }
+
+  // Use case mapping
+  const modelMap = {
+    'chatbot': 'turbo-3',
+    'podcast': 'aurora-3.5',
+    'audiobook': 'aurora-3.5',
+    'mobile': 'mini-2',
+    'broadcasting': 'aurora-4'
+  };
+
+  return modelMap[useCase] || 'aurora-3.5';
+}
+
+// Usage
+const model = selectOptimalModel({
+  priority: 'speed',
+  useCase: 'chatbot',
+  latency: 800
+});
+```
+
+### Batch Processing
+
+Process multiple requests efficiently:
+
+```javascript
+async function batchGenerateSpeech(texts, voice, model, concurrency = 18) {
+  const results = [];
+  const executing = [];
+
+  for (const text of texts) {
+    const promise = generateSpeech(text, voice, model).then(audio => {
+      executing.splice(executing.indexOf(promise), 1);
+      return audio;
+    });
+
+    results.push(promise);
+    executing.push(promise);
+
+    if (executing.length >= concurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  return Promise.all(results);
+}
+
+// Usage
+const texts = ['text1', 'text2', 'text3'];
+const audios = await batchGenerateSpeech(texts, 'lyra', 'aurora-3.5', 18);
+```
+
+### Chunk Long Text
+
+Split long text for better processing:
+
+```javascript
+function smartChunk(text, maxChars = 4000) {
+  if (text.length <= maxChars) {
+    return [text];
+  }
+
+  // Try to split on paragraphs
+  const paragraphs = text.split(/\n\n+/);
+  const chunks = [];
+  let currentChunk = '';
+
+  for (const paragraph of paragraphs) {
+    if ((currentChunk + paragraph).length > maxChars) {
+      if (currentChunk) chunks.push(currentChunk.trim());
+
+      // If single paragraph is too long, split on sentences
+      if (paragraph.length > maxChars) {
+        const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
+        let sentenceChunk = '';
+
+        for (const sentence of sentences) {
+          if ((sentenceChunk + sentence).length > maxChars) {
+            if (sentenceChunk) chunks.push(sentenceChunk.trim());
+            sentenceChunk = sentence;
+          } else {
+            sentenceChunk += sentence;
+          }
+        }
+
+        currentChunk = sentenceChunk;
+      } else {
+        currentChunk = paragraph;
+      }
+    } else {
+      currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk.trim());
+
+  return chunks;
+}
+
+// Usage
+const chunks = smartChunk(longText);
+const audios = await Promise.all(
+  chunks.map(chunk => generateSpeech(chunk, 'lyra', 'aurora-3.5'))
+);
+```
+
+## Error Handling
+
+### Comprehensive Error Handling
+
+Handle all error scenarios:
+
+```javascript
+async function robustGenerateSpeech(text, voice, model) {
+  try {
+    // Validate inputs
+    validateSpeechRequest(text, voice, model);
+
+    // Check balance before request
+    const balance = await getBalance();
+    if (balance.remaining_credits < text.length) {
+      throw new Error('Insufficient credits');
+    }
+
+    // Generate speech with retry
+    const audio = await exponentialBackoff(
+      () => generateSpeech(text, voice, model),
+      3
+    );
+
+    return audio;
+  } catch (error) {
+    // Log error
+    console.error('Speech generation failed:', error);
+
+    // Handle specific errors
+    if (error.code === 'INSUFFICIENT_CREDITS') {
+      // Alert user to add credits
+    } else if (error.code === 'RATE_LIMIT_EXCEEDED') {
+      // Queue for later
+    }
+
+    throw error;
+  }
+}
+```
+
+## Cost Optimization
+
+### Monitor Credit Usage
+
+Track and optimize credit consumption:
+
+```javascript
+class CreditManager {
+  constructor() {
+    this.dailyUsage = 0;
+    this.budgetLimit = 100000; // Daily limit
+  }
+
+  async checkAndRecordUsage(text) {
+    const estimatedCredits = text.length;
+
+    // Check if within budget
+    if (this.dailyUsage + estimatedCredits > this.budgetLimit) {
+      throw new Error('Daily budget limit reached');
+    }
+
+    // Get actual balance
+    const balance = await getBalance();
+    if (balance.remaining_credits < estimatedCredits) {
+      throw new Error('Insufficient credits');
+    }
+
+    // Record usage
+    this.dailyUsage += estimatedCredits;
+
+    return true;
+  }
+
+  resetDaily() {
+    this.dailyUsage = 0;
+  }
+
+  getUsage() {
+    return {
+      used: this.dailyUsage,
+      limit: this.budgetLimit,
+      remaining: this.budgetLimit - this.dailyUsage,
+      percentage: (this.dailyUsage / this.budgetLimit * 100).toFixed(2)
+    };
+  }
+}
+
+const creditManager = new CreditManager();
+
+async function budgetAwareGenerate(text, voice, model) {
+  await creditManager.checkAndRecordUsage(text);
+  return generateSpeech(text, voice, model);
+}
+```
+
+### Use Appropriate Quality
+
+Don't over-provision quality:
+
+```javascript
+// ❌ Bad - Using premium quality for everything
+const audio = await generateSpeech(notification, 'lyra', 'aurora-4');
+
+// ✅ Good - Match quality to use case
+const notificationAudio = await generateSpeech(notification, 'lyra', 'mini-2');
+const podcastAudio = await generateSpeech(episode, 'emma', 'aurora-3.5');
+const broadcastAudio = await generateSpeech(ad, 'marcus', 'aurora-4');
+```
+
+## Testing
+
+### Mock API for Testing
+
+Use mocks in development:
+
+```javascript
+class MockNeoSpeechAPI {
+  async generateSpeech(text, voice, model) {
+    // Simulate latency
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Return mock audio
+    return new Blob(['mock-audio-data'], { type: 'audio/mpeg' });
+  }
+
+  async listVoices() {
+    return {
+      voices: [
+        { id: 'lyra', name: 'Lyra', gender: 'female' },
+        { id: 'kai', name: 'Kai', gender: 'male' }
+      ]
+    };
+  }
+
+  async getBalance() {
+    return {
+      remaining_credits: 100000,
+      plan_type: 'pro'
+    };
+  }
+}
+
+// Use mock in tests
+const api = process.env.NODE_ENV === 'test'
+  ? new MockNeoSpeechAPI()
+  : new NeoSpeechClient(process.env.NEOSPEECH_API_KEY);
+```
+
+## Monitoring and Logging
+
+### Comprehensive Logging
+
+Log API interactions for debugging:
+
+```javascript
+class APILogger {
+  log(operation, params, result, error = null) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      operation,
+      params,
+      success: !error,
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        status: error.status
+      } : null,
+      result: result ? {
+        size: result.size || null,
+        type: result.type || null
+      } : null
+    };
+
+    console.log(JSON.stringify(logEntry));
+
+    // Send to monitoring service
+    // this.sendToMonitoring(logEntry);
+  }
+}
+
+const logger = new APILogger();
+
+async function loggedGenerateSpeech(text, voice, model) {
+  try {
+    const audio = await generateSpeech(text, voice, model);
+    logger.log('generateSpeech', { text, voice, model }, audio);
+    return audio;
+  } catch (error) {
+    logger.log('generateSpeech', { text, voice, model }, null, error);
+    throw error;
+  }
+}
+```
+
+## Security
+
+### Input Sanitization
+
+Sanitize user inputs to prevent abuse:
+
+```javascript
+function sanitizeAndValidate(text) {
+  // Remove excessive repetition
+  text = text.replace(/(.)\1{10,}/g, '$1$1$1');
+
+  // Limit special characters
+  const specialCharCount = (text.match(/[^a-zA-Z0-9\s.,!?]/g) || []).length;
+  if (specialCharCount > text.length * 0.3) {
+    throw new Error('Too many special characters');
+  }
+
+  // Check for spam patterns
+  if (/(.{1,20})\1{5,}/.test(text)) {
+    throw new Error('Suspicious repetition detected');
+  }
+
+  return text;
+}
+```
+
+## Best Practices Summary
+
+<CardGroup cols={2}>
+  <Card title="Secure Keys" icon="lock">
+    Never expose API keys in client-side code
+  </Card>
+
+  <Card title="Validate Input" icon="check">
+    Validate and sanitize all inputs before API calls
+  </Card>
+
+  <Card title="Cache Wisely" icon="database">
+    Cache frequently used data and generated audio
+  </Card>
+
+  <Card title="Rate Limit" icon="gauge">
+    Implement queuing and respect rate limits
+  </Card>
+
+  <Card title="Handle Errors" icon="shield">
+    Implement comprehensive error handling with retries
+  </Card>
+
+  <Card title="Monitor Usage" icon="chart-line">
+    Track API usage and costs
+  </Card>
+
+  <Card title="Optimize Quality" icon="sliders">
+    Choose appropriate models for each use case
+  </Card>
+
+  <Card title="Test Thoroughly" icon="vial">
+    Use mocks and test error scenarios
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="shield" href="/guides/error-handling">
+    Comprehensive error handling guide
+  </Card>
+  <Card title="Streaming" icon="tower-broadcast" href="/guides/streaming">
+    Streaming implementation guide
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/concepts/rate-limits">
+    Understanding rate limits
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/speech">
+    Complete API documentation
+  </Card>
+</CardGroup>

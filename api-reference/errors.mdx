@@ -1,0 +1,596 @@
+---
+title: "Error Handling"
+description: Comprehensive guide to API error codes and responses
+---
+
+## Overview
+
+The NeoSpeech API uses standard HTTP status codes and returns structured JSON error responses. All errors follow a consistent format to simplify error handling and debugging.
+
+## Error Response Format
+
+All error responses follow this structure:
+
+```json
+{
+  "success": false,
+  "message": "Human-readable error description",
+  "error_code": "SPECIFIC_ERROR_CODE",
+  "retryable": false,
+  "details": {
+    "field": "Additional context if applicable"
+  }
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `false` for error responses
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable error description
+</ResponseField>
+
+<ResponseField name="error_code" type="string">
+  Machine-readable error identifier
+</ResponseField>
+
+<ResponseField name="retryable" type="boolean">
+  Whether the request can be retried
+</ResponseField>
+
+<ResponseField name="details" type="object">
+  Additional error context (optional)
+</ResponseField>
+
+## Error Categories
+
+### Client Errors (4xx)
+
+Errors caused by invalid requests. Review request parameters and fix before retrying.
+
+<AccordionGroup>
+  <Accordion title="400 Bad Request">
+    Invalid request parameters or malformed request body
+
+    **Common Causes:**
+    - Missing required fields
+    - Invalid parameter values
+    - Malformed JSON
+    - Parameter type mismatch
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Invalid 'voice' parameter. A valid voice identifier is required.",
+      "error_code": "INVALID_VOICE",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Invalid 'model' parameter. Must be one of: aurora-4, aurora-3.5, aurora-3, turbo-3, mini-2",
+      "error_code": "INVALID_MODEL",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "The 'input' field is required and cannot be empty.",
+      "error_code": "MISSING_INPUT",
+      "retryable": false
+    }
+    ```
+
+    **How to Fix:**
+    - Validate all required parameters
+    - Check parameter value constraints
+    - Ensure JSON is properly formatted
+    - Review API documentation for valid values
+  </Accordion>
+
+  <Accordion title="401 Unauthorized">
+    Missing or invalid API key
+
+    **Common Causes:**
+    - No Authorization header provided
+    - Incorrect API key format
+    - Invalid or expired API key
+    - Missing Bearer prefix
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Authorization header is missing or invalid.",
+      "error_code": "MISSING_AUTH",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Invalid API key provided.",
+      "error_code": "INVALID_API_KEY",
+      "retryable": false
+    }
+    ```
+
+    **How to Fix:**
+    - Include Authorization header: `Bearer sk-your-api-key`
+    - Verify API key is correct and active
+    - Check for whitespace or formatting issues
+    - Generate new API key if necessary
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    Access denied due to plan restrictions or disabled account
+
+    **Common Causes:**
+    - Free plan attempting to access paid features
+    - API key disabled or suspended
+    - Account payment issues
+    - Rate limit enforcement
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Access denied. This API is only available for Pro and Business plans.",
+      "error_code": "PLAN_RESTRICTION",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Your API key has been disabled. Please contact support.",
+      "error_code": "KEY_DISABLED",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Account suspended due to payment issues.",
+      "error_code": "ACCOUNT_SUSPENDED",
+      "retryable": false
+    }
+    ```
+
+    **How to Fix:**
+    - Upgrade to Pro or Business plan
+    - Resolve payment or billing issues
+    - Contact support if account disabled
+    - Check dashboard for account status
+  </Accordion>
+
+  <Accordion title="404 Not Found">
+    Requested resource does not exist
+
+    **Common Causes:**
+    - Invalid voice ID
+    - Incorrect endpoint URL
+    - Resource deleted or unavailable
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "The requested voice does not exist.",
+      "error_code": "VOICE_NOT_FOUND",
+      "retryable": false
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Endpoint not found. Check the request URL.",
+      "error_code": "ENDPOINT_NOT_FOUND",
+      "retryable": false
+    }
+    ```
+
+    **How to Fix:**
+    - Verify voice ID exists using `/v1/voices/list`
+    - Check endpoint URL spelling and path
+    - Ensure resource hasn't been deprecated
+  </Accordion>
+
+  <Accordion title="413 Payload Too Large">
+    Request body exceeds size limits
+
+    **Common Causes:**
+    - Input text exceeds 5,000 characters
+    - Request body too large
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "The provided text exceeds the 5000-character limit.",
+      "error_code": "TEXT_TOO_LONG",
+      "retryable": false,
+      "details": {
+        "provided": 7500,
+        "max_allowed": 5000
+      }
+    }
+    ```
+
+    **How to Fix:**
+    - Split text into smaller chunks (max 5,000 characters)
+    - Process long content in multiple requests
+    - Implement text chunking logic
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    Rate limit exceeded
+
+    **Common Causes:**
+    - Too many requests per minute
+    - Concurrent request limit exceeded
+    - Burst rate limit hit
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Rate limit exceeded. Maximum 60 requests per minute.",
+      "error_code": "RATE_LIMIT_EXCEEDED",
+      "retryable": true,
+      "details": {
+        "retry_after": 45
+      }
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Concurrent request limit exceeded. Maximum 18 concurrent requests.",
+      "error_code": "CONCURRENCY_LIMIT_EXCEEDED",
+      "retryable": true
+    }
+    ```
+
+    **How to Fix:**
+    - Implement exponential backoff
+    - Respect `Retry-After` header
+    - Reduce request rate
+    - Queue requests to stay within limits
+    - Upgrade plan for higher limits
+  </Accordion>
+</AccordionGroup>
+
+### Server Errors (5xx)
+
+Errors from the server side. These are typically transient and can be retried.
+
+<AccordionGroup>
+  <Accordion title="500 Internal Server Error">
+    Unexpected server error during processing
+
+    **Common Causes:**
+    - Audio processing failure
+    - Database connection issues
+    - Internal service errors
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Processing failed due to an internal error.",
+      "error_code": "PROCESSING_ERROR",
+      "retryable": true
+    }
+    ```
+
+    ```json
+    {
+      "success": false,
+      "message": "Audio generation failed. Please try again.",
+      "error_code": "GENERATION_FAILED",
+      "retryable": true
+    }
+    ```
+
+    **How to Fix:**
+    - Retry request with exponential backoff
+    - Contact support if issue persists
+    - Check API status page
+  </Accordion>
+
+  <Accordion title="503 Service Unavailable">
+    Service temporarily unavailable
+
+    **Common Causes:**
+    - Scheduled maintenance
+    - System overload
+    - Service deployment
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Service temporarily unavailable. Please try again shortly.",
+      "error_code": "SERVICE_UNAVAILABLE",
+      "retryable": true,
+      "details": {
+        "retry_after": 120
+      }
+    }
+    ```
+
+    **How to Fix:**
+    - Wait and retry after specified time
+    - Check API status page
+    - Implement retry logic with backoff
+  </Accordion>
+
+  <Accordion title="504 Gateway Timeout">
+    Request processing timed out
+
+    **Common Causes:**
+    - Very long text processing
+    - High server load
+    - Network issues
+
+    **Example Errors:**
+
+    ```json
+    {
+      "success": false,
+      "message": "Request timed out. Try reducing input length or using streaming.",
+      "error_code": "REQUEST_TIMEOUT",
+      "retryable": true
+    }
+    ```
+
+    **How to Fix:**
+    - Reduce input text length
+    - Use streaming endpoint for long text
+    - Retry with exponential backoff
+  </Accordion>
+</AccordionGroup>
+
+## Error Code Reference
+
+| Error Code | HTTP Status | Description | Retryable |
+|-----------|-------------|-------------|-----------|
+| `INVALID_VOICE` | 400 | Voice ID is invalid | No |
+| `INVALID_MODEL` | 400 | Model ID is invalid | No |
+| `MISSING_INPUT` | 400 | Input text not provided | No |
+| `INVALID_PARAMETER` | 400 | Parameter value invalid | No |
+| `MISSING_AUTH` | 401 | Authorization header missing | No |
+| `INVALID_API_KEY` | 401 | API key is invalid | No |
+| `PLAN_RESTRICTION` | 403 | Feature not available on plan | No |
+| `KEY_DISABLED` | 403 | API key has been disabled | No |
+| `ACCOUNT_SUSPENDED` | 403 | Account is suspended | No |
+| `INSUFFICIENT_CREDITS` | 403 | Not enough credits remaining | No |
+| `VOICE_NOT_FOUND` | 404 | Voice does not exist | No |
+| `ENDPOINT_NOT_FOUND` | 404 | Invalid endpoint URL | No |
+| `TEXT_TOO_LONG` | 413 | Input exceeds 5,000 characters | No |
+| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests | Yes |
+| `CONCURRENCY_LIMIT_EXCEEDED` | 429 | Too many concurrent requests | Yes |
+| `PROCESSING_ERROR` | 500 | Internal processing error | Yes |
+| `GENERATION_FAILED` | 500 | Audio generation failed | Yes |
+| `SERVICE_UNAVAILABLE` | 503 | Service temporarily down | Yes |
+| `REQUEST_TIMEOUT` | 504 | Request processing timeout | Yes |
+
+## Error Handling Examples
+
+### Basic Error Handling
+
+<CodeGroup>
+
+```javascript JavaScript
+async function generateSpeechWithErrorHandling(text, voice, model) {
+  try {
+    const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ input: text, voice, model })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new APIError(
+        error.message,
+        error.error_code,
+        response.status,
+        error.retryable
+      );
+    }
+
+    return await response.blob();
+  } catch (error) {
+    if (error instanceof APIError) {
+      console.error(`API Error [${error.code}]: ${error.message}`);
+      if (error.retryable) {
+        console.log('Error is retryable. Consider implementing retry logic.');
+      }
+    }
+    throw error;
+  }
+}
+
+class APIError extends Error {
+  constructor(message, code, status, retryable) {
+    super(message);
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+  }
+}
+```
+
+```python Python
+class APIError(Exception):
+    def __init__(self, message, code, status, retryable):
+        super().__init__(message)
+        self.code = code
+        self.status = status
+        self.retryable = retryable
+
+def generate_speech_with_error_handling(text, voice, model):
+    try:
+        response = requests.post(
+            'https://api.neospeech.io/v1/audio/speech',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={'input': text, 'voice': voice, 'model': model}
+        )
+
+        if response.status_code != 200:
+            error = response.json()
+            raise APIError(
+                error.get('message', 'Unknown error'),
+                error.get('error_code'),
+                response.status_code,
+                error.get('retryable', False)
+            )
+
+        return response.content
+    except APIError as e:
+        print(f'API Error [{e.code}]: {e}')
+        if e.retryable:
+            print('Error is retryable. Consider implementing retry logic.')
+        raise
+```
+
+</CodeGroup>
+
+### Retry Logic with Exponential Backoff
+
+```javascript
+async function generateSpeechWithRetry(text, voice, model, maxRetries = 3) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await generateSpeechWithErrorHandling(text, voice, model);
+    } catch (error) {
+      lastError = error;
+
+      // Only retry if error is retryable
+      if (!error.retryable || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+```
+
+### Handle Specific Error Types
+
+```javascript
+async function handleAPIError(error) {
+  switch (error.code) {
+    case 'INVALID_API_KEY':
+    case 'MISSING_AUTH':
+      console.error('Authentication failed. Check your API key.');
+      // Redirect to authentication flow
+      break;
+
+    case 'PLAN_RESTRICTION':
+      console.error('Feature not available on your plan.');
+      // Show upgrade prompt
+      break;
+
+    case 'INSUFFICIENT_CREDITS':
+      console.error('Not enough credits remaining.');
+      // Show credit purchase flow
+      break;
+
+    case 'TEXT_TOO_LONG':
+      console.error('Text too long. Split into smaller chunks.');
+      // Implement text chunking
+      break;
+
+    case 'RATE_LIMIT_EXCEEDED':
+    case 'CONCURRENCY_LIMIT_EXCEEDED':
+      console.error('Rate limit exceeded. Implementing backoff...');
+      // Implement rate limiting queue
+      break;
+
+    case 'PROCESSING_ERROR':
+    case 'GENERATION_FAILED':
+      console.error('Server error. Retrying...');
+      // Retry with backoff
+      break;
+
+    default:
+      console.error(`Unexpected error: ${error.message}`);
+  }
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Input" icon="check">
+    Validate parameters client-side before making requests
+  </Card>
+  <Card title="Handle All Errors" icon="shield">
+    Implement comprehensive error handling for all status codes
+  </Card>
+  <Card title="Retry Smartly" icon="rotate">
+    Only retry retryable errors with exponential backoff
+  </Card>
+  <Card title="Log Errors" icon="file-lines">
+    Log errors with context for debugging and monitoring
+  </Card>
+  <Card title="User Feedback" icon="message">
+    Provide clear error messages to end users
+  </Card>
+  <Card title="Monitor Status" icon="chart-line">
+    Check API status page during outages
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Response Codes" icon="code" href="/api-reference/response-codes">
+    HTTP status code reference
+  </Card>
+  <Card title="Error Handling Guide" icon="book" href="/guides/error-handling">
+    Best practices for error handling
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/concepts/rate-limits">
+    Learn about rate limits
+  </Card>
+  <Card title="API Status" icon="signal" href="https://status.neospeech.io">
+    Check service status
+  </Card>
+</CardGroup>

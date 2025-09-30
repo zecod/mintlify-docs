@@ -1,0 +1,526 @@
+---
+title: "HTTP Response Codes"
+description: Complete reference for HTTP status codes used by the API
+---
+
+## Overview
+
+The NeoSpeech API uses standard HTTP response status codes to indicate the success or failure of requests. Understanding these codes helps you build robust error handling and debugging workflows.
+
+## Status Code Categories
+
+### Success (2xx)
+
+Indicates the request was successful and processed correctly.
+
+### Client Errors (4xx)
+
+Indicates an error caused by the client request. Review and fix the request before retrying.
+
+### Server Errors (5xx)
+
+Indicates an error on the server side. These are typically transient and can be retried.
+
+## Response Codes Reference
+
+<AccordionGroup>
+  <Accordion title="200 OK">
+    **Meaning:** Request succeeded and response contains requested data
+
+    **When Used:**
+    - Successful audio generation (speech/stream endpoints)
+    - Balance retrieved successfully
+    - Voice list retrieved successfully
+    - Model list retrieved successfully
+
+    **Response Format:**
+
+    For binary audio:
+    ```
+    Content-Type: audio/mpeg
+    X-Character-Count: 47
+    X-Model-Used: aurora-4
+    X-Voice-Used: Lyra
+
+    [Binary MP3 data]
+    ```
+
+    For JSON data:
+    ```json
+    {
+      "success": true,
+      "data": {
+        // Response data
+      }
+    }
+    ```
+
+    **Client Action:** Process the response data or audio as needed
+  </Accordion>
+
+  <Accordion title="400 Bad Request">
+    **Meaning:** Request is malformed or contains invalid parameters
+
+    **Common Causes:**
+    - Missing required fields (`input`, `voice`, `model`)
+    - Invalid parameter values
+    - Malformed JSON body
+    - Parameter type mismatch
+    - Invalid query parameter format
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Invalid 'voice' parameter. A valid voice identifier is required.",
+      "error_code": "INVALID_VOICE",
+      "retryable": false
+    }
+    ```
+
+    **Client Action:**
+    - Review request parameters
+    - Validate all required fields
+    - Check parameter value constraints
+    - Ensure JSON is properly formatted
+    - Do NOT retry without fixing the request
+  </Accordion>
+
+  <Accordion title="401 Unauthorized">
+    **Meaning:** Authentication failed or credentials are missing
+
+    **Common Causes:**
+    - No `Authorization` header provided
+    - Missing `Bearer` prefix in header
+    - Invalid API key format
+    - Expired or revoked API key
+    - Incorrect API key
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Authorization header is missing or invalid.",
+      "error_code": "MISSING_AUTH",
+      "retryable": false
+    }
+    ```
+
+    **Client Action:**
+    - Verify API key is correct
+    - Check Authorization header format: `Bearer sk-your-api-key`
+    - Generate new API key if necessary
+    - Do NOT retry without valid credentials
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    **Meaning:** Authentication succeeded but access is denied
+
+    **Common Causes:**
+    - Free plan accessing Pro/Business features
+    - API key has been disabled
+    - Account suspended (payment issues)
+    - Insufficient credits remaining
+    - Feature not available in region
+    - IP address blocked
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Access denied. This API is only available for Pro and Business plans.",
+      "error_code": "PLAN_RESTRICTION",
+      "retryable": false
+    }
+    ```
+
+    **Client Action:**
+    - Check account status in dashboard
+    - Upgrade plan if needed
+    - Resolve billing/payment issues
+    - Contact support if API key disabled
+    - Do NOT retry without resolving access issue
+  </Accordion>
+
+  <Accordion title="404 Not Found">
+    **Meaning:** Requested resource does not exist
+
+    **Common Causes:**
+    - Invalid voice ID
+    - Incorrect endpoint URL
+    - Typo in endpoint path
+    - Deprecated endpoint
+    - Resource has been deleted
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "The requested voice does not exist.",
+      "error_code": "VOICE_NOT_FOUND",
+      "retryable": false
+    }
+    ```
+
+    **Client Action:**
+    - Verify endpoint URL is correct
+    - Check voice ID exists via `/v1/voices/list`
+    - Review API documentation for correct paths
+    - Do NOT retry without fixing resource identifier
+  </Accordion>
+
+  <Accordion title="413 Payload Too Large">
+    **Meaning:** Request body exceeds maximum allowed size
+
+    **Common Causes:**
+    - Input text exceeds 5,000 characters
+    - Request body too large
+    - Excessive parameter data
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "The provided text exceeds the 5000-character limit.",
+      "error_code": "TEXT_TOO_LONG",
+      "retryable": false,
+      "details": {
+        "provided": 7500,
+        "max_allowed": 5000
+      }
+    }
+    ```
+
+    **Client Action:**
+    - Split text into chunks under 5,000 characters
+    - Process long content in multiple requests
+    - Implement text segmentation logic
+    - Do NOT retry without reducing payload size
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    **Meaning:** Rate limit has been exceeded
+
+    **Common Causes:**
+    - Too many requests per minute
+    - Concurrent request limit exceeded
+    - Burst rate limit hit
+    - Request quota exhausted
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Rate limit exceeded. Maximum 60 requests per minute.",
+      "error_code": "RATE_LIMIT_EXCEEDED",
+      "retryable": true,
+      "details": {
+        "retry_after": 45
+      }
+    }
+    ```
+
+    **Headers:**
+    ```
+    Retry-After: 45
+    X-RateLimit-Limit: 60
+    X-RateLimit-Remaining: 0
+    X-RateLimit-Reset: 1640995200
+    ```
+
+    **Client Action:**
+    - Wait for time specified in `Retry-After` header
+    - Implement exponential backoff
+    - Reduce request rate
+    - Queue requests to stay within limits
+    - Consider upgrading plan for higher limits
+    - Retry after waiting is acceptable
+  </Accordion>
+
+  <Accordion title="500 Internal Server Error">
+    **Meaning:** Unexpected error occurred on the server
+
+    **Common Causes:**
+    - Audio processing failure
+    - Database connection issue
+    - Internal service error
+    - Unexpected exception
+    - Resource allocation failure
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Processing failed due to an internal error.",
+      "error_code": "PROCESSING_ERROR",
+      "retryable": true
+    }
+    ```
+
+    **Client Action:**
+    - Retry with exponential backoff
+    - Log error details for investigation
+    - Contact support if persistent
+    - Check API status page
+    - Safe to retry after brief delay
+  </Accordion>
+
+  <Accordion title="503 Service Unavailable">
+    **Meaning:** Service is temporarily unavailable
+
+    **Common Causes:**
+    - Scheduled maintenance
+    - System overload
+    - Deployment in progress
+    - Temporary capacity issues
+    - Infrastructure problems
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Service temporarily unavailable. Please try again shortly.",
+      "error_code": "SERVICE_UNAVAILABLE",
+      "retryable": true,
+      "details": {
+        "retry_after": 120
+      }
+    }
+    ```
+
+    **Headers:**
+    ```
+    Retry-After: 120
+    ```
+
+    **Client Action:**
+    - Wait for time specified in `Retry-After` header
+    - Check API status page
+    - Implement retry with exponential backoff
+    - Alert operations team if prolonged
+    - Safe to retry after waiting
+  </Accordion>
+
+  <Accordion title="504 Gateway Timeout">
+    **Meaning:** Request processing exceeded timeout limit
+
+    **Common Causes:**
+    - Very long text processing
+    - High server load
+    - Network connectivity issues
+    - Upstream service timeout
+    - Complex audio generation
+
+    **Response Format:**
+    ```json
+    {
+      "success": false,
+      "message": "Request timed out. Try reducing input length or using streaming.",
+      "error_code": "REQUEST_TIMEOUT",
+      "retryable": true
+    }
+    ```
+
+    **Client Action:**
+    - Reduce input text length
+    - Use streaming endpoint for long text
+    - Retry with exponential backoff
+    - Split request into smaller parts
+    - Safe to retry with modifications
+  </Accordion>
+</AccordionGroup>
+
+## Response Headers
+
+### Success Response Headers
+
+```
+HTTP/1.1 200 OK
+Content-Type: audio/mpeg
+Content-Length: 245760
+X-Character-Count: 47
+X-Model-Used: aurora-4
+X-Voice-Used: Lyra
+X-Request-ID: req_abc123xyz
+```
+
+<ResponseField name="Content-Type" type="string">
+  MIME type of response (`audio/mpeg` or `application/json`)
+</ResponseField>
+
+<ResponseField name="Content-Length" type="integer">
+  Size of response body in bytes
+</ResponseField>
+
+<ResponseField name="X-Character-Count" type="integer">
+  Number of characters processed (audio endpoints only)
+</ResponseField>
+
+<ResponseField name="X-Model-Used" type="string">
+  Model used for generation (audio endpoints only)
+</ResponseField>
+
+<ResponseField name="X-Voice-Used" type="string">
+  Voice name used for generation (audio endpoints only)
+</ResponseField>
+
+<ResponseField name="X-Request-ID" type="string">
+  Unique identifier for request (useful for support)
+</ResponseField>
+
+### Rate Limit Headers
+
+```
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 42
+X-RateLimit-Reset: 1640995200
+```
+
+<ResponseField name="X-RateLimit-Limit" type="integer">
+  Maximum requests allowed in current time window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Remaining" type="integer">
+  Number of requests remaining in current time window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Reset" type="integer">
+  Unix timestamp when rate limit resets
+</ResponseField>
+
+### Error Response Headers
+
+```
+Retry-After: 45
+X-Request-ID: req_abc123xyz
+```
+
+<ResponseField name="Retry-After" type="integer">
+  Seconds to wait before retrying (429, 503 responses)
+</ResponseField>
+
+## Status Code Decision Tree
+
+```
+Is the request successful?
+├── Yes → 200 OK
+└── No → What went wrong?
+    ├── Client Error (Your fault)
+    │   ├── Invalid request? → 400 Bad Request
+    │   ├── Not authenticated? → 401 Unauthorized
+    │   ├── No permission? → 403 Forbidden
+    │   ├── Resource missing? → 404 Not Found
+    │   ├── Payload too large? → 413 Payload Too Large
+    │   └── Too many requests? → 429 Too Many Requests
+    └── Server Error (Our fault)
+        ├── Processing error? → 500 Internal Server Error
+        ├── Service down? → 503 Service Unavailable
+        └── Request timeout? → 504 Gateway Timeout
+```
+
+## Handling Response Codes
+
+### Check Status Code First
+
+```javascript
+const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+  method: 'POST',
+  headers: { /* ... */ },
+  body: JSON.stringify({ /* ... */ })
+});
+
+// Check status code
+if (response.status === 200) {
+  // Success - process audio
+  const audio = await response.blob();
+} else if (response.status >= 400 && response.status < 500) {
+  // Client error - fix request
+  const error = await response.json();
+  console.error('Client error:', error.message);
+} else if (response.status >= 500) {
+  // Server error - retry
+  const error = await response.json();
+  console.error('Server error:', error.message);
+  // Implement retry logic
+}
+```
+
+### Use Response Headers
+
+```javascript
+// Check rate limit headers
+const rateLimit = {
+  limit: response.headers.get('X-RateLimit-Limit'),
+  remaining: response.headers.get('X-RateLimit-Remaining'),
+  reset: response.headers.get('X-RateLimit-Reset')
+};
+
+if (rateLimit.remaining < 10) {
+  console.warn('Approaching rate limit:', rateLimit);
+}
+
+// Get retry delay
+if (response.status === 429 || response.status === 503) {
+  const retryAfter = response.headers.get('Retry-After');
+  console.log(`Retry after ${retryAfter} seconds`);
+}
+
+// Get request ID for support
+const requestId = response.headers.get('X-Request-ID');
+console.log('Request ID:', requestId);
+```
+
+## Quick Reference Table
+
+| Code | Meaning | Retryable | Action Required |
+|------|---------|-----------|-----------------|
+| 200 | Success | N/A | Process response |
+| 400 | Bad Request | No | Fix request parameters |
+| 401 | Unauthorized | No | Check API key |
+| 403 | Forbidden | No | Check permissions/plan |
+| 404 | Not Found | No | Verify resource exists |
+| 413 | Payload Too Large | No | Reduce input size |
+| 429 | Too Many Requests | Yes | Wait and retry |
+| 500 | Internal Server Error | Yes | Retry with backoff |
+| 503 | Service Unavailable | Yes | Wait and retry |
+| 504 | Gateway Timeout | Yes | Retry with smaller input |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Check Status First" icon="check-circle">
+    Always check HTTP status code before processing response
+  </Card>
+  <Card title="Read Error Body" icon="file-text">
+    Parse error JSON for detailed information and error codes
+  </Card>
+  <Card title="Respect Headers" icon="header">
+    Use rate limit and retry headers for smart retry logic
+  </Card>
+  <Card title="Log Request IDs" icon="id-card">
+    Save X-Request-ID for support and debugging
+  </Card>
+  <Card title="Handle All Codes" icon="list-check">
+    Implement handling for all possible status codes
+  </Card>
+  <Card title="Retry Smartly" icon="arrows-rotate">
+    Only retry 5xx and 429 errors with exponential backoff
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="shield" href="/api-reference/errors">
+    Detailed error codes and handling
+  </Card>
+  <Card title="Error Handling Guide" icon="book" href="/guides/error-handling">
+    Best practices for error handling
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/concepts/rate-limits">
+    Learn about rate limits
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    General API best practices
+  </Card>
+</CardGroup>

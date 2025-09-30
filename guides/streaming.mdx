@@ -1,0 +1,632 @@
+---
+title: "Streaming Guide"
+description: How to implement real-time streaming text-to-speech
+icon: "tower-broadcast"
+---
+
+## Overview
+
+Streaming TTS delivers audio progressively as it's generated, enabling faster time-to-first-audio and better user experience for real-time applications. This guide covers implementation patterns and best practices for streaming audio.
+
+## When to Use Streaming
+
+<CardGroup cols={2}>
+  <Card title="Real-Time Applications" icon="bolt">
+    Chatbots, virtual assistants, and conversational AI
+  </Card>
+  <Card title="Long Content" icon="file-lines">
+    Reduce perceived latency for longer text passages
+  </Card>
+  <Card title="Low Latency" icon="gauge-high">
+    Start playback before full generation completes
+  </Card>
+  <Card title="Progressive Delivery" icon="stream">
+    Stream audio chunks as they're generated
+  </Card>
+</CardGroup>
+
+## Streaming vs Standard
+
+| Feature | Standard (/audio/speech) | Streaming (/audio/stream) |
+|---------|-------------------------|---------------------------|
+| **Response Type** | Complete audio file | Chunked audio stream |
+| **Time to First Byte** | Full generation time | Faster, progressive |
+| **Use Case** | Complete file needed | Real-time playback |
+| **Transfer Encoding** | Content-Length | Chunked |
+| **Memory Usage** | Full file in memory | Process chunks incrementally |
+| **Retry Logic** | Simpler | More complex |
+
+## Basic Implementation
+
+### JavaScript/Node.js
+
+```javascript
+async function streamSpeech(text, voice = 'lyra', model = 'turbo-3') {
+  const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.NEOSPEECH_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      input: text,
+      voice: voice,
+      model: model
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  // Get stream reader
+  const reader = response.body.getReader();
+  const chunks = [];
+
+  // Read chunks
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      console.log('Stream complete');
+      break;
+    }
+
+    chunks.push(value);
+    console.log(`Received ${value.length} bytes`);
+  }
+
+  // Combine into complete audio
+  return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+// Usage
+const audio = await streamSpeech('Hello, this is a streaming test!');
+```
+
+### Python
+
+```python
+import requests
+
+def stream_speech(text, voice='lyra', model='turbo-3'):
+    response = requests.post(
+        'https://api.neospeech.io/v1/audio/stream',
+        headers={
+            'Authorization': f'Bearer {os.getenv("NEOSPEECH_API_KEY")}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'input': text,
+            'voice': voice,
+            'model': model
+        },
+        stream=True
+    )
+
+    if response.status_code != 200:
+        raise Exception(f'HTTP {response.status_code}')
+
+    chunks = []
+    for chunk in response.iter_content(chunk_size=8192):
+        if chunk:
+            chunks.append(chunk)
+            print(f'Received {len(chunk)} bytes')
+
+    print('Stream complete')
+    return b''.join(chunks)
+
+# Usage
+audio = stream_speech('Hello, this is a streaming test!')
+```
+
+## Real-Time Playback
+
+### Browser Implementation
+
+Play audio as chunks arrive:
+
+```javascript
+async function playStreamedAudio(text, voice = 'kai', model = 'turbo-3') {
+  const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ input: text, voice, model })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+
+  // Create MediaSource for progressive playback
+  const mediaSource = new MediaSource();
+  const audio = new Audio();
+  audio.src = URL.createObjectURL(mediaSource);
+
+  await new Promise((resolve) => {
+    mediaSource.addEventListener('sourceopen', resolve, { once: true });
+  });
+
+  const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
+  let isUpdating = false;
+  const queue = [];
+
+  // Function to append chunks
+  const appendChunk = (chunk) => {
+    if (isUpdating || queue.length > 0) {
+      queue.push(chunk);
+    } else {
+      isUpdating = true;
+      sourceBuffer.appendBuffer(chunk);
+    }
+  };
+
+  sourceBuffer.addEventListener('updateend', () => {
+    isUpdating = false;
+    if (queue.length > 0) {
+      const chunk = queue.shift();
+      isUpdating = true;
+      sourceBuffer.appendBuffer(chunk);
+    }
+  });
+
+  // Start playback
+  audio.play();
+
+  // Read and append chunks
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      // Wait for all chunks to be appended
+      await new Promise((resolve) => {
+        const checkQueue = () => {
+          if (!isUpdating && queue.length === 0) {
+            mediaSource.endOfStream();
+            resolve();
+          } else {
+            setTimeout(checkQueue, 100);
+          }
+        };
+        checkQueue();
+      });
+      break;
+    }
+
+    chunks.push(value);
+    appendChunk(value);
+  }
+
+  return audio;
+}
+
+// Usage
+await playStreamedAudio('This will play as it streams!');
+```
+
+### Simpler Browser Approach
+
+For simpler implementation, collect chunks then play:
+
+```javascript
+async function streamAndPlay(text, voice = 'kai', model = 'turbo-3') {
+  const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ input: text, voice, model })
+  });
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let firstChunkTime = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) break;
+
+    if (!firstChunkTime) {
+      firstChunkTime = Date.now();
+      console.log('First chunk received!');
+    }
+
+    chunks.push(value);
+
+    // Optional: Start playback after first few chunks
+    if (chunks.length === 3) {
+      const partialAudio = new Blob(chunks, { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(partialAudio);
+      const audio = new Audio(url);
+      audio.play();
+    }
+  }
+
+  const audioBlob = new Blob(chunks, { type: 'audio/mpeg' });
+  const url = URL.createObjectURL(audioBlob);
+
+  const audio = new Audio(url);
+  audio.play();
+
+  audio.onended = () => {
+    URL.revokeObjectURL(url);
+  };
+
+  return audio;
+}
+```
+
+## Progress Tracking
+
+### Track Download Progress
+
+```javascript
+async function streamWithProgress(text, voice, model, onProgress) {
+  const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ input: text, voice, model })
+  });
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let receivedBytes = 0;
+  const startTime = Date.now();
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      const totalTime = Date.now() - startTime;
+      onProgress({
+        done: true,
+        receivedBytes,
+        chunks: chunks.length,
+        totalTime,
+        avgChunkSize: Math.round(receivedBytes / chunks.length)
+      });
+      break;
+    }
+
+    chunks.push(value);
+    receivedBytes += value.length;
+
+    onProgress({
+      done: false,
+      receivedBytes,
+      chunks: chunks.length,
+      latestChunkSize: value.length,
+      elapsedTime: Date.now() - startTime
+    });
+  }
+
+  return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+// Usage
+const audio = await streamWithProgress(
+  'Long streaming content...',
+  'lyra',
+  'aurora-3.5',
+  (progress) => {
+    if (progress.done) {
+      console.log(`Complete: ${progress.receivedBytes} bytes in ${progress.totalTime}ms`);
+    } else {
+      console.log(`Progress: ${progress.chunks} chunks, ${progress.receivedBytes} bytes`);
+    }
+  }
+);
+```
+
+## Error Handling
+
+### Handle Stream Interruptions
+
+```javascript
+async function streamWithErrorHandling(text, voice, model, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ input: text, voice, model })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const chunks = [];
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+
+        return new Blob(chunks, { type: 'audio/mpeg' });
+      } catch (streamError) {
+        console.error(`Stream interrupted: ${streamError.message}`);
+
+        // If we have some chunks, return partial audio
+        if (chunks.length > 0) {
+          console.log(`Returning partial audio: ${chunks.length} chunks`);
+          return new Blob(chunks, { type: 'audio/mpeg' });
+        }
+
+        throw streamError;
+      }
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+
+      if (isLastAttempt) {
+        throw error;
+      }
+
+      const delay = Math.pow(2, attempt) * 1000;
+      console.log(`Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+```
+
+## Model Selection for Streaming
+
+Choose models based on latency requirements:
+
+| Model | Avg Latency | Best For |
+|-------|-------------|----------|
+| **turbo-3** | ~0.9s | Real-time chatbots, IVR systems |
+| **mini-2** | ~1.2s | IoT devices, mobile apps |
+| **aurora-3** | ~1.8s | Balanced quality and speed |
+| **aurora-3.5** | ~2.2s | High-quality streaming |
+| **aurora-4** | ~2.8s | Premium quality (slower) |
+
+### Recommended for Streaming
+
+```javascript
+// Best for real-time conversation
+const chatbotAudio = await streamSpeech(message, 'zara', 'turbo-3');
+
+// Good for quality streaming
+const narratorAudio = await streamSpeech(content, 'emma', 'aurora-3.5');
+
+// Mobile-optimized streaming
+const mobileAudio = await streamSpeech(text, 'kai', 'mini-2');
+```
+
+## Chatbot Integration
+
+### Complete Chatbot Example
+
+```javascript
+class StreamingChatbot {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.queue = [];
+    this.isPlaying = false;
+  }
+
+  async speak(text, voice = 'zara', model = 'turbo-3') {
+    // Add to queue
+    this.queue.push({ text, voice, model });
+
+    // Process queue if not already playing
+    if (!this.isPlaying) {
+      await this.processQueue();
+    }
+  }
+
+  async processQueue() {
+    this.isPlaying = true;
+
+    while (this.queue.length > 0) {
+      const { text, voice, model } = this.queue.shift();
+
+      try {
+        const audio = await this.streamAndPlay(text, voice, model);
+        await this.waitForAudioEnd(audio);
+      } catch (error) {
+        console.error('Playback error:', error);
+      }
+    }
+
+    this.isPlaying = false;
+  }
+
+  async streamAndPlay(text, voice, model) {
+    const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ input: text, voice, model })
+    });
+
+    const reader = response.body.getReader();
+    const chunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+
+    const audioBlob = new Blob(chunks, { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(audioBlob);
+    const audio = new Audio(url);
+
+    audio.play();
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+    };
+
+    return audio;
+  }
+
+  waitForAudioEnd(audio) {
+    return new Promise((resolve) => {
+      audio.onended = resolve;
+    });
+  }
+}
+
+// Usage
+const chatbot = new StreamingChatbot(process.env.NEOSPEECH_API_KEY);
+
+// Queue multiple responses
+await chatbot.speak('Hello! How can I help you today?');
+await chatbot.speak('I can answer questions and provide assistance.');
+```
+
+## Performance Optimization
+
+### Parallel Chunk Processing
+
+```javascript
+async function streamWithParallelProcessing(text, voice, model) {
+  const response = await fetch('https://api.neospeech.io/v1/audio/stream', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ input: text, voice, model })
+  });
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  const processors = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) break;
+
+    chunks.push(value);
+
+    // Process chunk in parallel (e.g., decode, analyze)
+    processors.push(
+      processChunk(value).catch(err => {
+        console.error('Chunk processing error:', err);
+      })
+    );
+  }
+
+  // Wait for all processors to complete
+  await Promise.all(processors);
+
+  return new Blob(chunks, { type: 'audio/mpeg' });
+}
+
+async function processChunk(chunk) {
+  // Perform parallel processing (decode, analyze, etc.)
+  return chunk;
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Turbo Model" icon="bolt">
+    Choose turbo-3 or mini-2 for lowest latency
+  </Card>
+
+  <Card title="Handle Interruptions" icon="shield">
+    Implement retry logic for stream failures
+  </Card>
+
+  <Card title="Track Progress" icon="chart-line">
+    Monitor chunk arrival for user feedback
+  </Card>
+
+  <Card title="Buffer Smartly" icon="database">
+    Balance buffering with playback start time
+  </Card>
+
+  <Card title="Queue Requests" icon="list">
+    Queue multiple streams to avoid overlap
+  </Card>
+
+  <Card title="Clean Up Resources" icon="trash">
+    Revoke object URLs and close connections
+  </Card>
+</CardGroup>
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="Not Handling Stream Errors">
+    **Problem:** Stream interruptions cause incomplete audio
+
+    **Solution:** Implement retry logic and handle partial streams
+
+    ```javascript
+    try {
+      const { done, value } = await reader.read();
+    } catch (error) {
+      console.error('Stream error:', error);
+      // Handle or retry
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Memory Leaks">
+    **Problem:** Not releasing resources after playback
+
+    **Solution:** Revoke object URLs and close connections
+
+    ```javascript
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Blocking the Main Thread">
+    **Problem:** Processing large chunks blocks UI
+
+    **Solution:** Use Web Workers or process chunks asynchronously
+
+    ```javascript
+    const worker = new Worker('audio-processor.js');
+    worker.postMessage({ chunk: value });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Stream API Reference" icon="book" href="/api-reference/stream">
+    Complete streaming API documentation
+  </Card>
+  <Card title="Models Guide" icon="brain" href="/concepts/models">
+    Choose the right model for streaming
+  </Card>
+  <Card title="Error Handling" icon="shield" href="/guides/error-handling">
+    Handle streaming errors effectively
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    General API best practices
+  </Card>
+</CardGroup>

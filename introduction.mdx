@@ -1,0 +1,108 @@
+---
+title: Introduction
+description: Professional text-to-speech API for developers
+---
+
+## Welcome to NeoSpeech API
+
+NeoSpeech provides enterprise-grade text-to-speech capabilities through a simple REST API. Convert text to natural-sounding speech in over 45 voices across multiple languages.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="High-Quality Voices" icon="microphone">
+    Access 45+ professional voices across 10 languages with natural intonation and clarity
+  </Card>
+  <Card title="Multiple Models" icon="brain">
+    Choose from 5 audio models optimized for quality, speed, or bandwidth
+  </Card>
+  <Card title="Real-Time Streaming" icon="tower-broadcast">
+    Stream audio in real-time for immediate playback with minimal latency
+  </Card>
+  <Card title="Simple Integration" icon="code">
+    RESTful API with straightforward authentication and clear documentation
+  </Card>
+</CardGroup>
+
+## Base URL
+
+```
+https://api.neospeech.io
+```
+
+Development environment:
+```
+http://localhost:3002
+```
+
+## Authentication
+
+All API requests require authentication using an API key. Include your API key in the Authorization header:
+
+```bash
+Authorization: Bearer sk-your-api-key-here
+```
+
+<Warning>
+API access is only available for **Pro** and **Business** plans. Free accounts cannot access the API.
+</Warning>
+
+## Quick Example
+
+```bash
+curl -X POST "https://api.neospeech.io/v1/audio/speech" \
+  -H "Authorization: Bearer sk-your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Hello, welcome to NeoSpeech!",
+    "voice": "lyra",
+    "model": "aurora-4"
+  }' \
+  --output speech.mp3
+```
+
+## Response Format
+
+All API responses follow a consistent format:
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+## Rate Limits
+
+| Plan | Regular TTS | Streaming TTS |
+|------|-------------|---------------|
+| Pro | 18 concurrent | 10 concurrent |
+| Business | 25 concurrent | 15 concurrent |
+
+Maximum text length: **5,000 characters** per request
+
+## Need Help?
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started in 5 minutes
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference/speech">
+    Explore all endpoints
+  </Card>
+  <Card title="Code Examples" icon="brackets-curly" href="/examples/javascript">
+    See implementation examples
+  </Card>
+  <Card title="Support" icon="life-ring" href="https://neospeech.io/support">
+    Contact our team
+  </Card>
+</CardGroup>
