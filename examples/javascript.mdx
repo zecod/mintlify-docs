@@ -6,38 +6,18 @@ icon: "js"
 
 ## Installation
 
-Install required packages:
+Install the official SDK:
 
 ```bash
-npm install node-fetch
-# or for Node.js 18+, fetch is built-in
+npm install neospeech-io
 ```
 
 ## Basic Setup
 
 ```javascript
-// Using ES modules
-const API_KEY = process.env.NEOSPEECH_API_KEY;
-const BASE_URL = 'https://api.neospeech.io/v1';
+const NeoSpeech = require('neospeech-io');
 
-// Helper function for API requests
-async function apiRequest(endpoint, options = {}) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || `HTTP ${response.status}`);
-  }
-
-  return response;
-}
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY);
 ```
 
 ## Generate Speech
@@ -45,66 +25,22 @@ async function apiRequest(endpoint, options = {}) {
 ### Basic Example
 
 ```javascript
-async function generateSpeech(text, voice = 'lyra', model = 'aurora-3.5') {
-  const response = await apiRequest('/audio/speech', {
-    method: 'POST',
-    body: JSON.stringify({
-      input: text,
-      voice: voice,
-      model: model
-    })
-  });
+const fs = require('fs');
 
-  const audioBlob = await response.blob();
-  return audioBlob;
-}
+const audio = await neospeech.audio.speech({
+  input: 'Hello, world!',
+  voice: 'lyra',
+  model: 'aurora-4'
+});
 
-// Usage
-const audio = await generateSpeech('Hello, world!', 'lyra', 'aurora-4');
+// Save to file
+fs.writeFileSync('output.mp3', Buffer.from(audio));
 ```
 
 ### Advanced Example with Options
 
 ```javascript
-async function generateSpeechAdvanced(options) {
-  const {
-    input,
-    voice = 'lyra',
-    model = 'aurora-3.5',
-    pitch = '+0%',
-    style = 'calm',
-    styleDegree = '1.5',
-    lang = 'en-US'
-  } = options;
-
-  const response = await apiRequest('/audio/speech', {
-    method: 'POST',
-    body: JSON.stringify({
-      input,
-      voice,
-      model,
-      pitch,
-      style,
-      styleDegree,
-      lang
-    })
-  });
-
-  // Get metadata from headers
-  const metadata = {
-    characterCount: response.headers.get('X-Character-Count'),
-    modelUsed: response.headers.get('X-Model-Used'),
-    voiceUsed: response.headers.get('X-Voice-Used'),
-    contentLength: response.headers.get('Content-Length')
-  };
-
-  const audioBlob = await response.blob();
-
-  return { audio: audioBlob, metadata };
-}
-
-// Usage
-const result = await generateSpeechAdvanced({
+const audio = await neospeech.audio.speech({
   input: 'Welcome to our professional service!',
   voice: 'lyra',
   model: 'aurora-4',
@@ -113,18 +49,21 @@ const result = await generateSpeechAdvanced({
   styleDegree: '1.8'
 });
 
-console.log('Generated audio:', result.metadata);
+const buffer = Buffer.from(audio);
+fs.writeFileSync('speech.mp3', buffer);
 ```
 
 ### Save Audio to File
 
 ```javascript
-import fs from 'fs';
-
 async function saveAudioToFile(text, filename, voice = 'lyra', model = 'aurora-3.5') {
-  const audioBlob = await generateSpeech(text, voice, model);
-  const buffer = Buffer.from(await audioBlob.arrayBuffer());
-  fs.writeFileSync(filename, buffer);
+  const audio = await neospeech.audio.speech({
+    input: text,
+    voice: voice,
+    model: model
+  });
+
+  fs.writeFileSync(filename, Buffer.from(audio));
   console.log(`Audio saved to ${filename}`);
 }
 
@@ -142,44 +81,38 @@ await saveAudioToFile(
 ### Basic Streaming
 
 ```javascript
-async function streamSpeech(text, voice = 'lyra', model = 'aurora-3.5') {
-  const response = await apiRequest('/audio/stream', {
-    method: 'POST',
-    body: JSON.stringify({
-      input: text,
-      voice: voice,
-      model: model
-    })
-  });
+const stream = await neospeech.audio.stream({
+  input: 'Streaming test message',
+  voice: 'kai',
+  model: 'turbo-3'
+});
 
-  const reader = response.body.getReader();
-  const chunks = [];
+const reader = stream.getReader();
+const chunks = [];
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
 
-    chunks.push(value);
-    console.log(`Received chunk: ${value.length} bytes`);
-  }
-
-  return new Blob(chunks, { type: 'audio/mpeg' });
+  chunks.push(value);
+  console.log(`Received chunk: ${value.length} bytes`);
 }
 
-// Usage
-const streamedAudio = await streamSpeech('Streaming test message', 'kai', 'turbo-3');
+const audioBlob = Buffer.concat(chunks);
+fs.writeFileSync('stream.mp3', audioBlob);
 ```
 
 ### Stream with Progress Callback
 
 ```javascript
 async function streamSpeechWithProgress(text, voice, model, onProgress) {
-  const response = await apiRequest('/audio/stream', {
-    method: 'POST',
-    body: JSON.stringify({ input: text, voice, model })
+  const stream = await neospeech.audio.stream({
+    input: text,
+    voice: voice,
+    model: model
   });
 
-  const reader = response.body.getReader();
+  const reader = stream.getReader();
   const chunks = [];
   let receivedBytes = 0;
 
@@ -199,7 +132,7 @@ async function streamSpeechWithProgress(text, voice, model, onProgress) {
     }
   }
 
-  return new Blob(chunks, { type: 'audio/mpeg' });
+  return Buffer.concat(chunks);
 }
 
 // Usage
@@ -216,20 +149,11 @@ const audio = await streamSpeechWithProgress(
 ## Check Balance
 
 ```javascript
-async function getBalance() {
-  const response = await apiRequest('/balance', {
-    method: 'GET'
-  });
+const balance = await neospeech.balance.get();
 
-  const result = await response.json();
-  return result.data;
-}
-
-// Usage
-const balance = await getBalance();
-console.log(`Remaining credits: ${balance.remaining_credits.toLocaleString()}`);
-console.log(`Plan: ${balance.plan_type}`);
-console.log(`Days remaining: ${balance.billing_cycle.days_remaining}`);
+console.log(`Remaining credits: ${balance.balance.remaining_credits.toLocaleString()}`);
+console.log(`Plan: ${balance.plan.type}`);
+console.log(`Current period usage: ${balance.usage_summary.current_period_usage}`);
 ```
 
 ## List Voices
@@ -237,40 +161,32 @@ console.log(`Days remaining: ${balance.billing_cycle.days_remaining}`);
 ### Get All Voices
 
 ```javascript
-async function listVoices(filters = {}) {
-  const params = new URLSearchParams(filters);
-  const endpoint = `/voices/list${params.toString() ? '?' + params : ''}`;
+const { voices, pagination } = await neospeech.voices.list();
 
-  const response = await apiRequest(endpoint, {
-    method: 'GET'
-  });
+console.log(`Found ${pagination.total} voices`);
 
-  const result = await response.json();
-  return result.data;
-}
-
-// Usage
-const allVoices = await listVoices();
-console.log(`Found ${allVoices.pagination.total} voices`);
+voices.forEach(voice => {
+  console.log(`${voice.name} (${voice.id}): ${voice.language}`);
+});
 ```
 
 ### Filter Voices
 
 ```javascript
 // Get female US English voices
-const femaleVoices = await listVoices({
+const femaleVoices = await neospeech.voices.list({
   gender: 'female',
   locale: 'en-US'
 });
 
 // Search for professional voices
-const professionalVoices = await listVoices({
+const professionalVoices = await neospeech.voices.list({
   search: 'professional'
 });
 
 // Paginated results
-const page1 = await listVoices({ limit: 10, offset: 0 });
-const page2 = await listVoices({ limit: 10, offset: 10 });
+const page1 = await neospeech.voices.list({ limit: 10, offset: 0 });
+const page2 = await neospeech.voices.list({ limit: 10, offset: 10 });
 ```
 
 ### Get All Voices with Pagination
@@ -282,7 +198,7 @@ async function getAllVoices() {
   const limit = 50;
 
   while (true) {
-    const result = await listVoices({ limit, offset });
+    const result = await neospeech.voices.list({ limit, offset });
     allVoices.push(...result.voices);
 
     console.log(`Retrieved ${allVoices.length} of ${result.pagination.total}`);
@@ -301,18 +217,9 @@ async function getAllVoices() {
 ## List Models
 
 ```javascript
-async function listModels() {
-  const response = await apiRequest('/models/list', {
-    method: 'GET'
-  });
+const { models } = await neospeech.models.list();
 
-  const result = await response.json();
-  return result.data;
-}
-
-// Usage
-const models = await listModels();
-models.models.forEach(model => {
+models.forEach(model => {
   console.log(`${model.name}: ${model.quality} quality, ${model.avg_latency_ms}ms latency`);
 });
 ```
@@ -322,72 +229,25 @@ models.models.forEach(model => {
 ### Basic Error Handling
 
 ```javascript
-async function generateSpeechWithErrorHandling(text, voice, model) {
-  try {
-    const response = await apiRequest('/audio/speech', {
-      method: 'POST',
-      body: JSON.stringify({ input: text, voice, model })
-    });
+const { NeoSpeechError } = require('neospeech-io');
 
-    return await response.blob();
-  } catch (error) {
-    console.error('Speech generation failed:', error.message);
-
-    // Handle specific error types
-    if (error.message.includes('Rate limit')) {
-      console.log('Rate limited. Please wait and retry.');
-    } else if (error.message.includes('Authorization')) {
-      console.log('Check your API key.');
-    }
-
-    throw error;
-  }
-}
-```
-
-### Custom Error Class
-
-```javascript
-class NeoSpeechError extends Error {
-  constructor(message, code, status, retryable) {
-    super(message);
-    this.name = 'NeoSpeechError';
-    this.code = code;
-    this.status = status;
-    this.retryable = retryable;
-  }
-}
-
-async function apiRequestWithErrors(endpoint, options = {}) {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new NeoSpeechError(
-      error.message || `HTTP ${response.status}`,
-      error.error_code,
-      response.status,
-      error.retryable || false
-    );
-  }
-
-  return response;
-}
-
-// Usage
 try {
-  await generateSpeech('test', 'lyra', 'aurora-4');
+  const audio = await neospeech.audio.speech({
+    input: 'test',
+    voice: 'lyra',
+    model: 'aurora-4'
+  });
 } catch (error) {
   if (error instanceof NeoSpeechError) {
-    console.log(`Error [${error.code}]: ${error.message}`);
+    console.error(`Error [${error.code}]: ${error.message}`);
+    console.log(`Status: ${error.status}`);
     console.log(`Retryable: ${error.retryable}`);
+
+    if (error.isRateLimitError()) {
+      console.log('Rate limited. Please wait and retry.');
+    } else if (error.isAuthError()) {
+      console.log('Check your API key.');
+    }
   }
 }
 ```
@@ -398,18 +258,18 @@ try {
 async function generateSpeechWithRetry(text, voice, model, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await generateSpeech(text, voice, model);
+      return await neospeech.audio.speech({
+        input: text,
+        voice: voice,
+        model: model
+      });
     } catch (error) {
       const isLastAttempt = attempt === maxRetries - 1;
 
-      // Check if error is retryable
-      const isRetryable = error.retryable || error.message.includes('500');
-
-      if (!isRetryable || isLastAttempt) {
+      if (!error.retryable || isLastAttempt) {
         throw error;
       }
 
-      // Exponential backoff
       const delay = Math.pow(2, attempt) * 1000;
       console.log(`Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -424,12 +284,10 @@ async function generateSpeechWithRetry(text, voice, model, maxRetries = 3) {
 
 ```javascript
 class RequestQueue {
-  constructor(maxConcurrent = 18, requestsPerMinute = 60) {
+  constructor(maxConcurrent = 18) {
     this.maxConcurrent = maxConcurrent;
-    this.requestsPerMinute = requestsPerMinute;
     this.queue = [];
     this.active = 0;
-    this.requestTimes = [];
   }
 
   async add(requestFn) {
@@ -440,23 +298,12 @@ class RequestQueue {
   }
 
   async processQueue() {
-    if (this.active >= this.maxConcurrent) return;
-
-    const now = Date.now();
-    this.requestTimes = this.requestTimes.filter(t => now - t < 60000);
-
-    if (this.requestTimes.length >= this.requestsPerMinute) {
-      const oldestRequest = Math.min(...this.requestTimes);
-      const delay = 60000 - (now - oldestRequest);
-      setTimeout(() => this.processQueue(), delay);
+    if (this.active >= this.maxConcurrent || this.queue.length === 0) {
       return;
     }
 
     const item = this.queue.shift();
-    if (!item) return;
-
     this.active++;
-    this.requestTimes.push(now);
 
     try {
       const result = await item.requestFn();
@@ -471,111 +318,87 @@ class RequestQueue {
 }
 
 // Usage
-const queue = new RequestQueue(18, 60);
+const queue = new RequestQueue(18);
 
 async function queuedGenerateSpeech(text, voice, model) {
-  return queue.add(() => generateSpeech(text, voice, model));
+  return queue.add(() =>
+    neospeech.audio.speech({ input: text, voice, model })
+  );
 }
 
 // Process multiple requests safely
-const texts = ['text1', 'text2', /* ... */ 'text100'];
+const texts = ['text1', 'text2', 'text3'];
 const audios = await Promise.all(
   texts.map(text => queuedGenerateSpeech(text, 'lyra', 'aurora-3.5'))
 );
 ```
 
-## Complete SDK Example
+## Batch Processing
 
 ```javascript
-class NeoSpeechClient {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
-    this.baseUrl = 'https://api.neospeech.io/v1';
-  }
+async function batchGenerateSpeech(texts, voice, model) {
+  const results = await Promise.all(
+    texts.map(text =>
+      neospeech.audio.speech({ input: text, voice, model })
+    )
+  );
 
-  async request(endpoint, options = {}) {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || `HTTP ${response.status}`);
-    }
-
-    return response;
-  }
-
-  async generateSpeech(options) {
-    const response = await this.request('/audio/speech', {
-      method: 'POST',
-      body: JSON.stringify(options)
-    });
-
-    return await response.blob();
-  }
-
-  async streamSpeech(options) {
-    const response = await this.request('/audio/stream', {
-      method: 'POST',
-      body: JSON.stringify(options)
-    });
-
-    const reader = response.body.getReader();
-    const chunks = [];
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-
-    return new Blob(chunks, { type: 'audio/mpeg' });
-  }
-
-  async getBalance() {
-    const response = await this.request('/balance');
-    const result = await response.json();
-    return result.data;
-  }
-
-  async listVoices(filters = {}) {
-    const params = new URLSearchParams(filters);
-    const endpoint = `/voices/list${params.toString() ? '?' + params : ''}`;
-    const response = await this.request(endpoint);
-    const result = await response.json();
-    return result.data;
-  }
-
-  async listModels() {
-    const response = await this.request('/models/list');
-    const result = await response.json();
-    return result.data;
-  }
+  return results;
 }
 
-// Usage
-const client = new NeoSpeechClient(process.env.NEOSPEECH_API_KEY);
+const texts = ['First message', 'Second message', 'Third message'];
+const audios = await batchGenerateSpeech(texts, 'kai', 'turbo-3');
 
-// Generate speech
-const audio = await client.generateSpeech({
-  input: 'Hello, world!',
+// Save each audio file
+audios.forEach((audio, index) => {
+  fs.writeFileSync(`output-${index + 1}.mp3`, Buffer.from(audio));
+});
+```
+
+## TypeScript Support
+
+Full TypeScript support included:
+
+```typescript
+import NeoSpeech, { SpeechOptions, NeoSpeechError } from 'neospeech-io';
+
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY!);
+
+const options: SpeechOptions = {
+  input: 'Hello, TypeScript!',
   voice: 'lyra',
   model: 'aurora-4'
-});
+};
 
-// Check balance
-const balance = await client.getBalance();
-console.log(`Credits: ${balance.remaining_credits}`);
+const audio: ArrayBuffer = await neospeech.audio.speech(options);
+```
 
-// List voices
-const voices = await client.listVoices({ gender: 'female' });
-console.log(`Found ${voices.voices.length} female voices`);
+## Using Without SDK (Raw Fetch)
+
+If you prefer not to use the SDK:
+
+```javascript
+async function generateSpeechRaw(text, voice, model) {
+  const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.NEOSPEECH_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      input: text,
+      voice: voice,
+      model: model
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return await response.arrayBuffer();
+}
 ```
 
 ## Related Resources
@@ -587,7 +410,7 @@ console.log(`Found ${voices.voices.length} female voices`);
   <Card title="cURL Examples" icon="terminal" href="/examples/curl">
     Command-line examples
   </Card>
-  <Card title="API Reference" icon="book" href="/api-reference/speech">
+  <Card title="API Reference" icon="book" href="/api/text-to-speech">
     Complete API documentation
   </Card>
   <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">

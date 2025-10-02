@@ -28,23 +28,18 @@ curl https://api.neospeech.io/v1/audio/speech \
 ```
 
 ```javascript JavaScript
+import NeoSpeech from 'neospeech-io';
 import fs from 'node:fs/promises';
 
-const response = await fetch('https://api.neospeech.io/v1/audio/speech', {
-  method: 'POST',
-  headers: {
-    Authorization: `Bearer ${process.env.NEOSPEECH_API_KEY}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    input: 'Hello from NeoSpeech!',
-    voice: 'lyra',
-    model: 'aurora-4'
-  })
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY);
+
+const audio = await neospeech.audio.speech({
+  input: 'Hello from NeoSpeech!',
+  voice: 'lyra',
+  model: 'aurora-4'
 });
 
-const audioBuffer = Buffer.from(await response.arrayBuffer());
-await fs.writeFile('hello.mp3', audioBuffer);
+await fs.writeFile('hello.mp3', Buffer.from(audio));
 ```
 
 ```python Python
@@ -103,14 +98,17 @@ curl -s "https://api.neospeech.io/v1/voices/list?gender=female&search=lyra&limit
 ```
 
 ```javascript JavaScript
-const response = await fetch('https://api.neospeech.io/v1/voices/list?gender=female&search=lyra&limit=10', {
-  headers: {
-    Authorization: `Bearer ${process.env.NEOSPEECH_API_KEY}`
-  }
+import NeoSpeech from 'neospeech-io';
+
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY);
+
+const { voices } = await neospeech.voices.list({
+  gender: 'female',
+  search: 'lyra',
+  limit: 10
 });
 
-const data = await response.json();
-console.log(`Returned ${data.data.voices.length} voice(s)`);
+console.log(`Returned ${voices.length} voice(s)`);
 ```
 
 ```python Python
@@ -190,14 +188,13 @@ curl -s "https://api.neospeech.io/v1/models/list" \
 ```
 
 ```javascript JavaScript
-const response = await fetch('https://api.neospeech.io/v1/models/list', {
-  headers: {
-    Authorization: `Bearer ${process.env.NEOSPEECH_API_KEY}`
-  }
-});
+import NeoSpeech from 'neospeech-io';
 
-const models = await response.json();
-console.log(models.data.models.map(model => model.shortname));
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY);
+
+const { models } = await neospeech.models.list();
+
+console.log(models.map(model => model.shortname));
 ```
 
 ```python Python
@@ -295,14 +292,13 @@ curl -s "https://api.neospeech.io/v1/balance" \
 ```
 
 ```javascript JavaScript
-const response = await fetch('https://api.neospeech.io/v1/balance', {
-  headers: {
-    Authorization: `Bearer ${process.env.NEOSPEECH_API_KEY}`
-  }
-});
+import NeoSpeech from 'neospeech-io';
 
-const balance = await response.json();
-console.log(balance.data.balance);
+const neospeech = new NeoSpeech(process.env.NEOSPEECH_API_KEY);
+
+const { balance } = await neospeech.balance.get();
+
+console.log(balance);
 ```
 
 ```python Python

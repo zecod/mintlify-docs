@@ -13,7 +13,27 @@ NeoSpeech API converts text into speech audio. Send text, get MP3 audio back.
 - Stream audio in real-time
 - Authenticate with API key
 
-## Basic usage
+## SDK Installation
+
+Install the official Node.js SDK:
+
+```bash
+npm install neospeech-io
+```
+
+```javascript
+import NeoSpeech from 'neospeech-io';
+
+const neospeech = new NeoSpeech('YOUR_API_KEY');
+
+const audio = await neospeech.audio.speech({
+  input: "Hello world",
+  voice: "lyra",
+  model: "aurora-4"
+});
+```
+
+## Basic usage (cURL)
 
 ```bash
 curl https://api.neospeech.io/v1/audio/speech \
